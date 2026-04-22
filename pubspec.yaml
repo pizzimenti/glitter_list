@@ -21,3 +21,10 @@ dev_dependencies:
 
 flutter:
   uses-material-design: true
+  fonts:
+    - family: Sniglet
+      fonts:
+        - asset: assets/fonts/Sniglet-Regular.ttf
+          weight: 400
+        - asset: assets/fonts/Sniglet-ExtraBold.ttf
+          weight: 800

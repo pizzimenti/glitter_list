@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/todo_item.dart';
 import '../state/app_state.dart';
+import 'glitter_colors.dart';
 
 class TodoTile extends ConsumerStatefulWidget {
   const TodoTile({
@@ -100,7 +101,7 @@ class _TodoTileState extends ConsumerState<TodoTile> {
                 .onSurface
                 .withValues(alpha: 0.5),
           )
-        : null;
+        : TextStyle(color: GlitterColors.contentOn(context));
 
     return ListTile(
       key: widget.key,
