@@ -108,30 +108,35 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _promptRename(String listId, String currentName) async {
     final controller = TextEditingController(text: currentName);
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('Rename list'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          onSubmitted: (v) => Navigator.pop(ctx, v),
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('Rename list'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            onSubmitted: (v) => Navigator.pop(ctx, v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Save'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Save'),
-          ),
-        ],
-      ),
-    );
-    final trimmed = result?.trim() ?? '';
-    if (trimmed.isNotEmpty) {
-      await ref.read(appStateProvider.notifier).renameList(listId, trimmed);
+      );
+      if (!mounted) return;
+      final trimmed = result?.trim() ?? '';
+      if (trimmed.isNotEmpty) {
+        await ref.read(appStateProvider.notifier).renameList(listId, trimmed);
+      }
+    } finally {
+      controller.dispose();
     }
   }
 
@@ -153,6 +158,7 @@ class _HomePageState extends ConsumerState<HomePage> {
         ],
       ),
     );
+    if (!mounted) return;
     if (confirmed == true) {
       await ref.read(appStateProvider.notifier).deleteList(listId);
     }
@@ -160,30 +166,35 @@ class _HomePageState extends ConsumerState<HomePage> {
 
   Future<void> _promptAddItem(String listId) async {
     final controller = TextEditingController();
-    final result = await showDialog<String>(
-      context: context,
-      builder: (ctx) => AlertDialog(
-        title: const Text('New item'),
-        content: TextField(
-          controller: controller,
-          autofocus: true,
-          onSubmitted: (v) => Navigator.pop(ctx, v),
+    try {
+      final result = await showDialog<String>(
+        context: context,
+        builder: (ctx) => AlertDialog(
+          title: const Text('New item'),
+          content: TextField(
+            controller: controller,
+            autofocus: true,
+            onSubmitted: (v) => Navigator.pop(ctx, v),
+          ),
+          actions: [
+            TextButton(
+              onPressed: () => Navigator.pop(ctx),
+              child: const Text('Cancel'),
+            ),
+            TextButton(
+              onPressed: () => Navigator.pop(ctx, controller.text),
+              child: const Text('Add'),
+            ),
+          ],
         ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(ctx),
-            child: const Text('Cancel'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(ctx, controller.text),
-            child: const Text('Add'),
-          ),
-        ],
-      ),
-    );
-    final trimmed = result?.trim() ?? '';
-    if (trimmed.isNotEmpty) {
-      await ref.read(appStateProvider.notifier).addItem(listId, trimmed);
+      );
+      if (!mounted) return;
+      final trimmed = result?.trim() ?? '';
+      if (trimmed.isNotEmpty) {
+        await ref.read(appStateProvider.notifier).addItem(listId, trimmed);
+      }
+    } finally {
+      controller.dispose();
     }
   }
 }

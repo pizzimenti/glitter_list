@@ -12,6 +12,7 @@ class AddListSheet extends ConsumerStatefulWidget {
 
 class _AddListSheetState extends ConsumerState<AddListSheet> {
   final _controller = TextEditingController();
+  bool _isSubmitting = false;
 
   @override
   void dispose() {
@@ -20,9 +21,15 @@ class _AddListSheetState extends ConsumerState<AddListSheet> {
   }
 
   Future<void> _submit() async {
+    if (_isSubmitting) return;
     final name = _controller.text.trim();
     if (name.isEmpty) return;
-    await ref.read(appStateProvider.notifier).addList(name);
+    setState(() => _isSubmitting = true);
+    try {
+      await ref.read(appStateProvider.notifier).addList(name);
+    } finally {
+      if (mounted) setState(() => _isSubmitting = false);
+    }
     if (mounted) Navigator.pop(context);
   }
 
@@ -47,11 +54,15 @@ class _AddListSheetState extends ConsumerState<AddListSheet> {
           TextField(
             controller: _controller,
             autofocus: true,
+            enabled: !_isSubmitting,
             decoration: const InputDecoration(hintText: 'List name'),
             onSubmitted: (_) => _submit(),
           ),
           const SizedBox(height: 12),
-          FilledButton(onPressed: _submit, child: const Text('Create')),
+          FilledButton(
+            onPressed: _isSubmitting ? null : _submit,
+            child: const Text('Create'),
+          ),
         ],
       ),
     );

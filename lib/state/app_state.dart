@@ -53,9 +53,9 @@ class AppStateNotifier extends StateNotifier<AppState> {
     final idx = state.lists.indexWhere((l) => l.id == id);
     if (idx < 0) return;
     final next = [...state.lists]..removeAt(idx);
-    final newIndex = next.isEmpty
-        ? 0
-        : state.currentListIndex.clamp(0, next.length - 1);
+    var candidate = state.currentListIndex;
+    if (idx < candidate) candidate -= 1;
+    final newIndex = next.isEmpty ? 0 : candidate.clamp(0, next.length - 1);
     state = AppState(lists: next, currentListIndex: newIndex);
     await _persist();
   }

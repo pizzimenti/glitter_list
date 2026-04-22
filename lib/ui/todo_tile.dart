@@ -48,8 +48,10 @@ class _TodoTileState extends ConsumerState<TodoTile> {
 
   void _startEdit() {
     setState(() => _editing = true);
-    WidgetsBinding.instance
-        .addPostFrameCallback((_) => _focusNode.requestFocus());
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (!mounted) return;
+      _focusNode.requestFocus();
+    });
   }
 
   void _commit() {

@@ -1,4 +1,4 @@
-import 'package:hive_flutter/hive_flutter.dart';
+import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 import '../models/todo_list.dart';
 
@@ -16,10 +16,15 @@ class HiveRepository {
   List<TodoList> load() {
     final raw = _box.get(_listsKey);
     if (raw is! List) return [];
-    return raw
-        .whereType<Map>()
-        .map(TodoList.fromMap)
-        .toList();
+    final result = <TodoList>[];
+    for (final entry in raw.whereType<Map>()) {
+      try {
+        result.add(TodoList.fromMap(entry));
+      } catch (_) {
+        // Skip malformed entries so one bad record doesn't drop the whole store.
+      }
+    }
+    return result;
   }
 
   Future<void> save(List<TodoList> lists) async {

@@ -102,4 +102,58 @@ void main() {
       expect(identical(notifier.state, before), isTrue);
     });
   });
+
+  group('AppStateNotifier.deleteList', () {
+    late AppStateNotifier notifier;
+
+    setUp(() {
+      notifier = AppStateNotifier(
+        _FakeRepo(),
+        AppState(
+          lists: [
+            TodoList(id: 'L1', name: 'a'),
+            TodoList(id: 'L2', name: 'b'),
+            TodoList(id: 'L3', name: 'c'),
+          ],
+          currentListIndex: 2,
+        ),
+      );
+    });
+
+    test('deleting a list before the current one decrements selection', () async {
+      // Regression: previously only clamped, so current would stay at 2 when
+      // L1 was removed, silently shifting selection from L3 to what was L2.
+      await notifier.deleteList('L1');
+      expect(notifier.state.lists.map((l) => l.id), ['L2', 'L3']);
+      expect(notifier.state.currentListIndex, 1);
+      expect(notifier.state.lists[notifier.state.currentListIndex].id, 'L3');
+    });
+
+    test('deleting the current list keeps index but clamps into range', () async {
+      await notifier.deleteList('L3');
+      expect(notifier.state.lists.map((l) => l.id), ['L1', 'L2']);
+      expect(notifier.state.currentListIndex, 1);
+    });
+
+    test('deleting a list after the current one leaves selection alone', () async {
+      notifier.switchList(0);
+      await notifier.deleteList('L3');
+      expect(notifier.state.lists.map((l) => l.id), ['L1', 'L2']);
+      expect(notifier.state.currentListIndex, 0);
+    });
+
+    test('deleting the last list resets index to 0', () async {
+      await notifier.deleteList('L1');
+      await notifier.deleteList('L2');
+      await notifier.deleteList('L3');
+      expect(notifier.state.lists, isEmpty);
+      expect(notifier.state.currentListIndex, 0);
+    });
+
+    test('unknown id is a no-op', () async {
+      await notifier.deleteList('does-not-exist');
+      expect(notifier.state.lists.length, 3);
+      expect(notifier.state.currentListIndex, 2);
+    });
+  });
 }
