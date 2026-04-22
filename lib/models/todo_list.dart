@@ -1,12 +1,21 @@
 import 'todo_item.dart';
 
 class TodoList {
-  TodoList({required this.id, required this.name, List<TodoItem>? items})
-      : items = items ?? [];
+  const TodoList({
+    required this.id,
+    required this.name,
+    this.items = const [],
+  });
 
   final String id;
-  String name;
-  List<TodoItem> items;
+  final String name;
+  final List<TodoItem> items;
+
+  TodoList copyWith({String? name, List<TodoItem>? items}) => TodoList(
+        id: id,
+        name: name ?? this.name,
+        items: items ?? this.items,
+      );
 
   Map<String, dynamic> toMap() => {
         'id': id,

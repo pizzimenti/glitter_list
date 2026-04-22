@@ -25,9 +25,6 @@ class AppStateNotifier extends StateNotifier<AppState> {
 
   Future<void> _persist() => _repo.save(state.lists);
 
-  TodoList _requireList(String id) =>
-      state.lists.firstWhere((l) => l.id == id);
-
   void switchList(int index) {
     if (index < 0 || index >= state.lists.length) return;
     if (index == state.currentListIndex) return;
@@ -44,8 +41,11 @@ class AppStateNotifier extends StateNotifier<AppState> {
   }
 
   Future<void> renameList(String id, String name) async {
-    _requireList(id).name = name;
-    state = state.copyWith(lists: [...state.lists]);
+    final idx = state.lists.indexWhere((l) => l.id == id);
+    if (idx < 0) return;
+    final lists = [...state.lists];
+    lists[idx] = lists[idx].copyWith(name: name);
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 
@@ -61,41 +61,71 @@ class AppStateNotifier extends StateNotifier<AppState> {
   }
 
   Future<void> addItem(String listId, String text) async {
-    final list = _requireList(listId);
-    list.items.add(TodoItem(id: _uuid.v4(), text: text));
-    state = state.copyWith(lists: [...state.lists]);
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final lists = [...state.lists];
+    lists[idx] = lists[idx].copyWith(
+      items: [...lists[idx].items, TodoItem(id: _uuid.v4(), text: text)],
+    );
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 
   Future<void> toggleItem(String listId, String itemId) async {
-    final item = _requireList(listId).items.firstWhere((i) => i.id == itemId);
-    item.done = !item.done;
-    state = state.copyWith(lists: [...state.lists]);
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    final itemIdx = list.items.indexWhere((i) => i.id == itemId);
+    if (itemIdx < 0) return;
+    final items = [...list.items];
+    items[itemIdx] = items[itemIdx].copyWith(done: !items[itemIdx].done);
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(items: items);
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 
   Future<void> editItemText(String listId, String itemId, String text) async {
-    final item = _requireList(listId).items.firstWhere((i) => i.id == itemId);
-    item.text = text;
-    state = state.copyWith(lists: [...state.lists]);
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    final itemIdx = list.items.indexWhere((i) => i.id == itemId);
+    if (itemIdx < 0) return;
+    final items = [...list.items];
+    items[itemIdx] = items[itemIdx].copyWith(text: text);
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(items: items);
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 
   Future<void> deleteItem(String listId, String itemId) async {
-    _requireList(listId).items.removeWhere((i) => i.id == itemId);
-    state = state.copyWith(lists: [...state.lists]);
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    if (!list.items.any((i) => i.id == itemId)) return;
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(
+      items: list.items.where((i) => i.id != itemId).toList(),
+    );
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 
   Future<void> reorderItem(String listId, int oldIndex, int newIndex) async {
-    final items = _requireList(listId).items;
-    if (oldIndex < 0 || oldIndex >= items.length) return;
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    if (oldIndex < 0 || oldIndex >= list.items.length) return;
     var target = newIndex;
     if (target > oldIndex) target -= 1;
-    target = target.clamp(0, items.length - 1);
+    target = target.clamp(0, list.items.length - 1);
+    final items = [...list.items];
     final moved = items.removeAt(oldIndex);
     items.insert(target, moved);
-    state = state.copyWith(lists: [...state.lists]);
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(items: items);
+    state = state.copyWith(lists: lists);
     await _persist();
   }
 }

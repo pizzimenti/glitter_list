@@ -6,15 +6,18 @@ class HiveRepository {
   static const _boxName = 'glitter_list';
   static const _listsKey = 'lists';
 
-  late final Box _box;
+  Box? _box;
 
   Future<void> init() async {
+    if (_box != null) return;
     await Hive.initFlutter();
     _box = await Hive.openBox(_boxName);
   }
 
   List<TodoList> load() {
-    final raw = _box.get(_listsKey);
+    final box = _box;
+    if (box == null) return [];
+    final raw = box.get(_listsKey);
     if (raw is! List) return [];
     final result = <TodoList>[];
     for (final entry in raw.whereType<Map>()) {
@@ -28,6 +31,8 @@ class HiveRepository {
   }
 
   Future<void> save(List<TodoList> lists) async {
-    await _box.put(_listsKey, lists.map((e) => e.toMap()).toList());
+    final box = _box;
+    if (box == null) return;
+    await box.put(_listsKey, lists.map((e) => e.toMap()).toList());
   }
 }

@@ -156,4 +156,121 @@ void main() {
       expect(notifier.state.currentListIndex, 2);
     });
   });
+
+  group('AppStateNotifier immutability', () {
+    late _FakeRepo repo;
+    late AppStateNotifier notifier;
+
+    setUp(() {
+      repo = _FakeRepo();
+      notifier = AppStateNotifier(
+        repo,
+        AppState(
+          lists: [
+            TodoList(id: 'L1', name: 'L1', items: [
+              TodoItem(id: 'A', text: 'a'),
+              TodoItem(id: 'B', text: 'b', done: true),
+            ]),
+          ],
+          currentListIndex: 0,
+        ),
+      );
+    });
+
+    test('toggleItem does not mutate prior state snapshot', () async {
+      final before = notifier.state;
+      final beforeItem = before.lists[0].items[0];
+      await notifier.toggleItem('L1', 'A');
+      expect(beforeItem.done, isFalse,
+          reason: 'prior item reference must not be mutated in place');
+      expect(notifier.state.lists[0].items[0].done, isTrue);
+      expect(identical(before, notifier.state), isFalse);
+    });
+
+    test('editItemText does not mutate prior snapshot', () async {
+      final before = notifier.state;
+      final beforeItem = before.lists[0].items[1];
+      await notifier.editItemText('L1', 'B', 'renamed');
+      expect(beforeItem.text, 'b');
+      expect(notifier.state.lists[0].items[1].text, 'renamed');
+    });
+
+    test('renameList does not mutate prior snapshot', () async {
+      final before = notifier.state;
+      final beforeList = before.lists[0];
+      await notifier.renameList('L1', 'new name');
+      expect(beforeList.name, 'L1');
+      expect(notifier.state.lists[0].name, 'new name');
+    });
+
+    test('addItem does not mutate prior list items', () async {
+      final before = notifier.state;
+      final beforeItems = before.lists[0].items;
+      final beforeLength = beforeItems.length;
+      await notifier.addItem('L1', 'c');
+      expect(beforeItems.length, beforeLength);
+      expect(notifier.state.lists[0].items.length, beforeLength + 1);
+    });
+  });
+
+  group('AppStateNotifier unknown-id guards', () {
+    late _FakeRepo repo;
+    late AppStateNotifier notifier;
+
+    setUp(() {
+      repo = _FakeRepo();
+      notifier = AppStateNotifier(
+        repo,
+        AppState(
+          lists: [
+            TodoList(id: 'L1', name: 'L1', items: [
+              TodoItem(id: 'A', text: 'a'),
+            ]),
+          ],
+          currentListIndex: 0,
+        ),
+      );
+    });
+
+    test('addItem to unknown list is a no-op (no throw, no persist)', () async {
+      await notifier.addItem('does-not-exist', 'x');
+      expect(notifier.state.lists[0].items.length, 1);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('toggleItem on unknown list is a no-op', () async {
+      await notifier.toggleItem('does-not-exist', 'A');
+      expect(notifier.state.lists[0].items[0].done, isFalse);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('toggleItem with unknown item id is a no-op', () async {
+      await notifier.toggleItem('L1', 'does-not-exist');
+      expect(notifier.state.lists[0].items[0].done, isFalse);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('editItemText with unknown item id is a no-op', () async {
+      await notifier.editItemText('L1', 'does-not-exist', 'x');
+      expect(notifier.state.lists[0].items[0].text, 'a');
+      expect(repo.saveCalls, 0);
+    });
+
+    test('deleteItem with unknown item id is a no-op', () async {
+      await notifier.deleteItem('L1', 'does-not-exist');
+      expect(notifier.state.lists[0].items.length, 1);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('renameList with unknown id is a no-op', () async {
+      await notifier.renameList('does-not-exist', 'x');
+      expect(notifier.state.lists[0].name, 'L1');
+      expect(repo.saveCalls, 0);
+    });
+
+    test('reorderItem on unknown list is a no-op', () async {
+      await notifier.reorderItem('does-not-exist', 0, 1);
+      expect(repo.saveCalls, 0);
+    });
+  });
 }

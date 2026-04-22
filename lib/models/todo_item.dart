@@ -1,9 +1,9 @@
 class TodoItem {
-  TodoItem({required this.id, required this.text, this.done = false});
+  const TodoItem({required this.id, required this.text, this.done = false});
 
   final String id;
-  String text;
-  bool done;
+  final String text;
+  final bool done;
 
   Map<String, dynamic> toMap() => {
         'id': id,
