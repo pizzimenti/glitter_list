@@ -273,4 +273,66 @@ void main() {
       expect(repo.saveCalls, 0);
     });
   });
+
+  group('AppStateNotifier.clearCompleted', () {
+    late _FakeRepo repo;
+    late AppStateNotifier notifier;
+
+    setUp(() {
+      repo = _FakeRepo();
+      notifier = AppStateNotifier(
+        repo,
+        AppState(
+          lists: [
+            TodoList(id: 'L1', name: 'L1', items: [
+              TodoItem(id: 'A', text: 'a'),
+              TodoItem(id: 'B', text: 'b', done: true),
+              TodoItem(id: 'C', text: 'c', done: true),
+              TodoItem(id: 'D', text: 'd'),
+            ]),
+          ],
+          currentListIndex: 0,
+        ),
+      );
+    });
+
+    test('removes only done items, preserves order of remaining', () async {
+      await notifier.clearCompleted('L1');
+      final items = notifier.state.lists[0].items;
+      expect(items.map((i) => i.id), ['A', 'D']);
+      expect(repo.saveCalls, 1);
+    });
+
+    test('no-op when nothing is done (and does not persist)', () async {
+      notifier = AppStateNotifier(
+        repo,
+        AppState(
+          lists: [
+            TodoList(id: 'L1', name: 'L1', items: [
+              TodoItem(id: 'A', text: 'a'),
+              TodoItem(id: 'B', text: 'b'),
+            ]),
+          ],
+          currentListIndex: 0,
+        ),
+      );
+      await notifier.clearCompleted('L1');
+      expect(notifier.state.lists[0].items.length, 2);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('unknown listId is a no-op', () async {
+      await notifier.clearCompleted('does-not-exist');
+      expect(notifier.state.lists[0].items.length, 4);
+      expect(repo.saveCalls, 0);
+    });
+
+    test('does not mutate prior state snapshot', () async {
+      final before = notifier.state;
+      final beforeItems = before.lists[0].items;
+      await notifier.clearCompleted('L1');
+      expect(beforeItems.map((i) => i.id), ['A', 'B', 'C', 'D']);
+      expect(notifier.state.lists[0].items.map((i) => i.id), ['A', 'D']);
+    });
+  });
 }

@@ -1,3 +1,4 @@
+import 'package:flutter/foundation.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:uuid/uuid.dart';
@@ -6,17 +7,33 @@ import 'models/todo_list.dart';
 import 'state/app_state.dart';
 import 'storage/hive_repository.dart';
 import 'ui/glitter_colors.dart';
+import 'ui/glitter_theme.dart';
 import 'ui/home_page.dart';
+
+void _installErrorHandlers() {
+  FlutterError.onError = (details) {
+    FlutterError.presentError(details);
+    debugPrint(
+      '[glitter-error] framework: ${details.exceptionAsString()}\n'
+      '${details.stack}',
+    );
+  };
+  PlatformDispatcher.instance.onError = (error, stack) {
+    debugPrint('[glitter-error] async: $error\n$stack');
+    return true;
+  };
+}
 
 Future<void> main() async {
   WidgetsFlutterBinding.ensureInitialized();
+  _installErrorHandlers();
 
   final repo = HiveRepository();
   await repo.init();
 
   var lists = repo.load();
   if (lists.isEmpty) {
-    lists = [TodoList(id: Uuid().v4(), name: 'My List')];
+    lists = [TodoList(id: Uuid().v4(), name: 'My Glitter List ✨')];
     await repo.save(lists);
   }
 
@@ -33,19 +50,19 @@ Future<void> main() async {
 class GlitterListApp extends StatelessWidget {
   const GlitterListApp({super.key});
 
+  static const _titleFontSize = 30.0;
+  static const _bodyFontSize = 22.0;
+
   ColorScheme _schemeFor(Brightness brightness) {
     final base = ColorScheme.fromSeed(
-      seedColor: GlitterColors.hotPink,
+      seedColor: GlitterColors.accent,
       brightness: brightness,
     );
-    final isDark = brightness == Brightness.dark;
-    final bg = isDark ? GlitterColors.deepPurple : GlitterColors.lightPink;
-    final fg = isDark ? GlitterColors.lightPink : GlitterColors.deepPurple;
     return base.copyWith(
-      surface: bg,
-      onSurface: fg,
-      primary: GlitterColors.hotPink,
-      onPrimary: GlitterColors.deepPurple,
+      surface: GlitterColors.bgFor(brightness),
+      onSurface: GlitterColors.chromeFor(brightness),
+      primary: GlitterColors.accent,
+      onPrimary: GlitterColors.onAccent,
     );
   }
 
@@ -61,6 +78,19 @@ class GlitterListApp extends StatelessWidget {
         backgroundColor: scheme.surface,
         foregroundColor: scheme.onSurface,
       ),
+      floatingActionButtonTheme: const FloatingActionButtonThemeData(
+        backgroundColor: GlitterColors.accent,
+        foregroundColor: GlitterColors.onAccent,
+        sizeConstraints: BoxConstraints.tightFor(width: 67.2, height: 67.2),
+        iconSize: 28,
+      ),
+      extensions: [
+        GlitterTheme(
+          content: GlitterColors.contentFor(brightness),
+          titleFontSize: _titleFontSize,
+          bodyFontSize: _bodyFontSize,
+        ),
+      ],
     );
   }
 

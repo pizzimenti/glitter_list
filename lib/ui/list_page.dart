@@ -25,7 +25,7 @@ class ListPage extends ConsumerWidget {
     }
     final notifier = ref.read(appStateProvider.notifier);
     return ReorderableListView.builder(
-      padding: const EdgeInsets.symmetric(vertical: 8),
+      padding: EdgeInsets.zero,
       buildDefaultDragHandles: false,
       itemCount: list.items.length,
       onReorder: (oldIndex, newIndex) =>
