@@ -2,7 +2,7 @@
 
 All notable changes to **Glitter List** are documented here. The format follows [Keep a Changelog](https://keepachangelog.com/en/1.1.0/), and this project aims to adhere to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
-## [0.1.0] - 2026-04-23 - Unreleased
+## [Unreleased]
 
 First versioned cut of the app. Local-only multi-list todos with a glittery, offline-first Flutter build for Android and iOS.
 
@@ -21,7 +21,7 @@ First versioned cut of the app. Local-only multi-list todos with a glittery, off
 
 ### Fixed
 
-- Dialog `TextEditingController` lifecycle race that threw `_dependents.isEmpty` when tapping **Cancel** during the dialog's exit animation.
+- Dialog `TextEditingController` lifecycle race that tripped Flutter's internal `_dependents.isEmpty` framework assertion when tapping **Cancel** during the dialog's exit animation.
 - Default Android FAB contrast on the pink scaffold (it was invisible against the auto-generated pale-pink `primaryContainer`).
 
 ### Notes

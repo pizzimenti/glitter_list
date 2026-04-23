@@ -299,10 +299,15 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
 }
 
 class _MenuItem extends PopupMenuItem<String> {
-  // Not const: Dart's const-eval can't construct `_MenuItemRow(icon: icon,
-  // label: label)` in a const super() call even when the outer invocation
-  // is const. CodeRabbit flagged this as a promotable const; verified it
-  // isn't with the current Dart semantics. Revisit if Dart relaxes.
+  // Not const: Dart rejects `invalid_constant` because the super()
+  // initializer constructs a new `_MenuItemRow(icon: icon, label: label)`
+  // whose arguments are this constructor's parameters — those aren't
+  // treated as const-evaluable in a sub-expression inside super(), even
+  // when the outer invocation (`const _MenuItem(...)`) passes compile-
+  // time constants. Verified with explicit `const _MenuItemRow(...)`
+  // (column 43 error) and without (column 18 error). Re-flagged by
+  // CodeRabbit across two rounds; the suggestion is based on a rule
+  // relaxation that doesn't exist in current Dart semantics.
   _MenuItem({
     required String super.value,
     required IconData icon,
