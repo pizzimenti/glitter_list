@@ -99,6 +99,18 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await _persist();
   }
 
+  Future<void> clearCompleted(String listId) async {
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    final remaining = list.items.where((i) => !i.done).toList();
+    if (remaining.length == list.items.length) return;
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(items: remaining);
+    state = state.copyWith(lists: lists);
+    await _persist();
+  }
+
   Future<void> deleteItem(String listId, String itemId) async {
     final idx = state.lists.indexWhere((l) => l.id == listId);
     if (idx < 0) return;

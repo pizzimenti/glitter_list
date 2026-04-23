@@ -1,10 +1,11 @@
 name: glitter_list
 description: "Glitter List — local-only multi-list todo."
 publish_to: 'none'
-version: 1.0.0+1
+version: 0.1.0+1
 
 environment:
   sdk: ^3.11.5
+  flutter: ">=3.27.0"
 
 dependencies:
   flutter:
@@ -15,6 +16,7 @@ dependencies:
   uuid: ^4.4.0
 
 dev_dependencies:
+  flutter_launcher_icons: ^0.14.1
   flutter_test:
     sdk: flutter
   flutter_lints: ^6.0.0
@@ -28,3 +30,21 @@ flutter:
           weight: 400
         - asset: assets/fonts/Sniglet-ExtraBold.ttf
           weight: 800
+
+flutter_launcher_icons:
+  android: "ic_launcher"
+  ios: true
+  # v2 re-composes the subject with more breathing room + better
+  # centering so the launcher's mask + flutter_launcher_icons' 16%
+  # inset together leave a well-framed icon on both circle and
+  # squircle devices. v1 (app_icon.png) kept for reference.
+  image_path: "assets/icon/app_icon_v2.png"
+  remove_alpha_ios: true
+  # Use the full composite as the adaptive-icon background layer so
+  # the launcher masks the whole icon to the device's shape (circle,
+  # squircle, etc.) instead of applying the Android 8+ legacy-icon
+  # "white circle with shrunken bitmap" fallback. Foreground is a
+  # fully transparent PNG — we don't want a separate subject on top.
+  adaptive_icon_background: "assets/icon/app_icon_v2.png"
+  adaptive_icon_foreground: "assets/icon/transparent.png"
+  min_sdk_android: 21
