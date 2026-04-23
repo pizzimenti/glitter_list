@@ -71,7 +71,9 @@ class _HomePageState extends ConsumerState<HomePage> {
       textDirection: TextDirection.ltr,
       maxLines: 3,
     )..layout(maxWidth: titleMaxWidth);
-    final toolbarHeight = math.max(kToolbarHeight, measured.height + 24);
+    final measuredHeight = measured.height;
+    measured.dispose();
+    final toolbarHeight = math.max(kToolbarHeight, measuredHeight + 24);
 
     return Scaffold(
       appBar: AppBar(
@@ -297,6 +299,10 @@ class _TextPromptDialogState extends State<_TextPromptDialog> {
 }
 
 class _MenuItem extends PopupMenuItem<String> {
+  // Not const: Dart's const-eval can't construct `_MenuItemRow(icon: icon,
+  // label: label)` in a const super() call even when the outer invocation
+  // is const. CodeRabbit flagged this as a promotable const; verified it
+  // isn't with the current Dart semantics. Revisit if Dart relaxes.
   _MenuItem({
     required String super.value,
     required IconData icon,

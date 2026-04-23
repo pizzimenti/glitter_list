@@ -39,6 +39,15 @@ class GlitterTheme extends ThemeExtension<GlitterTheme> {
   }
 }
 
+/// Reasonable fallback when a widget tree is constructed without our
+/// theme extension (notably: isolated widget tests).
+const GlitterTheme _fallbackGlitter = GlitterTheme(
+  content: Color(0xFFA32D6E),
+  titleFontSize: 30,
+  bodyFontSize: 22,
+);
+
 extension GlitterThemeOf on BuildContext {
-  GlitterTheme get glitter => Theme.of(this).extension<GlitterTheme>()!;
+  GlitterTheme? get glitterOrNull => Theme.of(this).extension<GlitterTheme>();
+  GlitterTheme get glitter => glitterOrNull ?? _fallbackGlitter;
 }

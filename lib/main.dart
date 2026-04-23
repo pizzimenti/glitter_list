@@ -11,6 +11,11 @@ import 'ui/glitter_theme.dart';
 import 'ui/home_page.dart';
 
 void _installErrorHandlers() {
+  if (kDebugMode) {
+    // Flush error lines immediately instead of batching via the default
+    // rate-limited debugPrint.
+    debugPrint = debugPrintSynchronously;
+  }
   FlutterError.onError = (details) {
     FlutterError.presentError(details);
     debugPrint(
@@ -18,9 +23,11 @@ void _installErrorHandlers() {
       '${details.stack}',
     );
   };
+  // Return false so the platform's default reporting still runs; we only
+  // log, we don't mark the error as handled.
   PlatformDispatcher.instance.onError = (error, stack) {
     debugPrint('[glitter-error] async: $error\n$stack');
-    return true;
+    return false;
   };
 }
 

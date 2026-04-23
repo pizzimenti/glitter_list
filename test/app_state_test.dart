@@ -333,6 +333,13 @@ void main() {
       await notifier.clearCompleted('L1');
       expect(beforeItems.map((i) => i.id), ['A', 'B', 'C', 'D']);
       expect(notifier.state.lists[0].items.map((i) => i.id), ['A', 'D']);
+      // Reference identity guards: mutations must produce new instances,
+      // never alias the prior snapshot's state or items list.
+      expect(identical(before, notifier.state), isFalse);
+      expect(
+        identical(beforeItems, notifier.state.lists[0].items),
+        isFalse,
+      );
     });
   });
 }

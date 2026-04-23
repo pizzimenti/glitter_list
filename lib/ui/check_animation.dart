@@ -74,22 +74,28 @@ class _StrikethroughPainter extends CustomPainter {
       maxLines: null,
     )..layout(maxWidth: size.width);
 
-    final textWidth = tp.width;
-    if (textWidth <= 0) return;
-
-    final y = size.height / 2;
-    final endX = textWidth * progress;
     final strokeWidth = (style.fontSize ?? 16) * 0.1;
-
-    final paint = Paint()
+    final paintBase = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
-      ..strokeCap = StrokeCap.round
-      ..shader = const LinearGradient(colors: _rainbow).createShader(
-        Rect.fromLTWH(0, 0, textWidth, strokeWidth),
-      );
+      ..strokeCap = StrokeCap.round;
+    const gradient = LinearGradient(colors: _rainbow);
 
-    canvas.drawLine(Offset(0, y), Offset(endX, y), paint);
+    // Draw one rainbow segment per laid-out line so wrapped text gets a
+    // strikethrough on every line, vertically centered on that line.
+    final lines = tp.computeLineMetrics();
+    for (final line in lines) {
+      final lineWidth = line.width;
+      if (lineWidth <= 0) continue;
+      final y = line.baseline - line.ascent + line.height / 2;
+      final endX = lineWidth * progress;
+      paintBase.shader = gradient.createShader(
+        Rect.fromLTWH(0, y - strokeWidth / 2, lineWidth, strokeWidth),
+      );
+      canvas.drawLine(Offset(0, y), Offset(endX, y), paintBase);
+    }
+
+    tp.dispose();
   }
 
   @override
@@ -240,8 +246,12 @@ class _SparklePainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_SparklePainter old) =>
-      old.progress != progress || old.color != color;
+      old.progress != progress ||
+      old.color != color ||
+      old.count != count ||
+      old.maxRadius != maxRadius ||
+      old.starSize != starSize;
 }
 
 /// Convenience: the glow color for the whole family.
-Color get kCheckGlow => GlitterColors.accent;
+const Color kCheckGlow = GlitterColors.accent;
