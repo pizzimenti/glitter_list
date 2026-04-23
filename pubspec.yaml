@@ -36,4 +36,11 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/app_icon.png"
   remove_alpha_ios: true
+  # Use the full composite as the adaptive-icon background layer so
+  # the launcher masks the whole icon to the device's shape (circle,
+  # squircle, etc.) instead of applying the Android 8+ legacy-icon
+  # "white circle with shrunken bitmap" fallback. Foreground is a
+  # fully transparent PNG — we don't want a separate subject on top.
+  adaptive_icon_background: "assets/icon/app_icon.png"
+  adaptive_icon_foreground: "assets/icon/transparent.png"
   min_sdk_android: 21
