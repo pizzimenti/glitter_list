@@ -45,7 +45,7 @@ class GlitterListApp extends StatelessWidget {
       surface: bg,
       onSurface: fg,
       primary: GlitterColors.hotPink,
-      onPrimary: Colors.white,
+      onPrimary: GlitterColors.deepPurple,
     );
   }
 

@@ -11,5 +11,5 @@ class GlitterColors {
   static Color contentOn(BuildContext context) =>
       Theme.of(context).brightness == Brightness.dark
           ? lightPurple
-          : hotPink;
+          : deepPurple;
 }
