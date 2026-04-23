@@ -4,6 +4,8 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.1.0] - 2026-04-23
+
 First versioned cut of the app. Local-only multi-list todos with a glittery, offline-first Flutter build for Android and iOS.
 
 ### Added
