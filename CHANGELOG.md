@@ -17,7 +17,7 @@ First versioned cut of the app. Local-only multi-list todos with a glittery, off
 - **Long list titles wrap.** The AppBar grows vertically to fit titles that exceed one line (up to three).
 - **Inline edit.** Tap any item to edit its text; the cursor appears in place with no font size or color shift.
 - **Developer error handlers** that capture framework and async exceptions with a `[glitter-error]` log prefix for easy grep.
-- **Custom app icon** replacing the default Flutter launcher icon. Android ships full adaptive-icon support (foreground + background layers) plus a themed monochrome layer for Android 13+ dynamic theming; iOS gets a fully opaque 1024×1024 master with all required sizes generated.
+- **Custom app icon** replacing the default Flutter launcher icon. Single 1024×1024 opaque composite used as the master for both platforms; iOS's launcher applies its own rounded-rect mask, Android's launcher applies whatever mask shape the device is configured for (circle, squircle, rounded square).
 
 ### Fixed
 

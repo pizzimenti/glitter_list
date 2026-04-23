@@ -36,12 +36,4 @@ flutter_launcher_icons:
   ios: true
   image_path: "assets/icon/app_icon.png"
   remove_alpha_ios: true
-  adaptive_icon_background: "assets/icon/background.png"
-  # `_alpha` variants are flood-fill-keyed versions of the originals —
-  # the sources had the Photoshop-style transparency checkerboard
-  # rasterized as opaque pixels instead of a real alpha channel, which
-  # Android's launcher rendered literally (blocking the background
-  # layer). See commit introducing assets/icon/foreground_alpha.png.
-  adaptive_icon_foreground: "assets/icon/foreground_alpha.png"
-  adaptive_icon_monochrome: "assets/icon/monochrome_alpha.png"
   min_sdk_android: 21
