@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
+import 'glitter_colors.dart';
 import 'list_page.dart';
 
 class HomePage extends ConsumerStatefulWidget {
@@ -57,6 +58,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               child: Text(
                 currentList?.name ?? 'Glitter List',
                 overflow: TextOverflow.ellipsis,
+                style: TextStyle(color: GlitterColors.contentOn(context)),
               ),
             ),
             _PageDots(count: state.lists.length, index: state.currentListIndex),
@@ -107,36 +109,18 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _promptRename(String listId, String currentName) async {
-    final controller = TextEditingController(text: currentName);
-    try {
-      final result = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('Rename list'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            onSubmitted: (v) => Navigator.pop(ctx, v),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Save'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      final trimmed = result?.trim() ?? '';
-      if (trimmed.isNotEmpty) {
-        await ref.read(appStateProvider.notifier).renameList(listId, trimmed);
-      }
-    } finally {
-      controller.dispose();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => _TextPromptDialog(
+        title: 'Rename list',
+        confirmLabel: 'Save',
+        initialValue: currentName,
+      ),
+    );
+    if (!mounted) return;
+    final trimmed = result?.trim() ?? '';
+    if (trimmed.isNotEmpty) {
+      await ref.read(appStateProvider.notifier).renameList(listId, trimmed);
     }
   }
 
@@ -165,37 +149,68 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 
   Future<void> _promptAddItem(String listId) async {
-    final controller = TextEditingController();
-    try {
-      final result = await showDialog<String>(
-        context: context,
-        builder: (ctx) => AlertDialog(
-          title: const Text('New item'),
-          content: TextField(
-            controller: controller,
-            autofocus: true,
-            onSubmitted: (v) => Navigator.pop(ctx, v),
-          ),
-          actions: [
-            TextButton(
-              onPressed: () => Navigator.pop(ctx),
-              child: const Text('Cancel'),
-            ),
-            TextButton(
-              onPressed: () => Navigator.pop(ctx, controller.text),
-              child: const Text('Add'),
-            ),
-          ],
-        ),
-      );
-      if (!mounted) return;
-      final trimmed = result?.trim() ?? '';
-      if (trimmed.isNotEmpty) {
-        await ref.read(appStateProvider.notifier).addItem(listId, trimmed);
-      }
-    } finally {
-      controller.dispose();
+    final result = await showDialog<String>(
+      context: context,
+      builder: (_) => const _TextPromptDialog(
+        title: 'New item',
+        confirmLabel: 'Add',
+      ),
+    );
+    if (!mounted) return;
+    final trimmed = result?.trim() ?? '';
+    if (trimmed.isNotEmpty) {
+      await ref.read(appStateProvider.notifier).addItem(listId, trimmed);
     }
+  }
+}
+
+class _TextPromptDialog extends StatefulWidget {
+  const _TextPromptDialog({
+    required this.title,
+    required this.confirmLabel,
+    this.initialValue,
+  });
+
+  final String title;
+  final String confirmLabel;
+  final String? initialValue;
+
+  @override
+  State<_TextPromptDialog> createState() => _TextPromptDialogState();
+}
+
+class _TextPromptDialogState extends State<_TextPromptDialog> {
+  late final TextEditingController _controller =
+      TextEditingController(text: widget.initialValue);
+
+  @override
+  void dispose() {
+    _controller.dispose();
+    super.dispose();
+  }
+
+  void _submit() => Navigator.pop(context, _controller.text);
+
+  @override
+  Widget build(BuildContext context) {
+    return AlertDialog(
+      title: Text(widget.title),
+      content: TextField(
+        controller: _controller,
+        autofocus: true,
+        onSubmitted: (_) => _submit(),
+      ),
+      actions: [
+        TextButton(
+          onPressed: () => Navigator.pop(context),
+          child: const Text('Cancel'),
+        ),
+        TextButton(
+          onPressed: _submit,
+          child: Text(widget.confirmLabel),
+        ),
+      ],
+    );
   }
 }
 

@@ -5,6 +5,7 @@ import 'package:uuid/uuid.dart';
 import 'models/todo_list.dart';
 import 'state/app_state.dart';
 import 'storage/hive_repository.dart';
+import 'ui/glitter_colors.dart';
 import 'ui/home_page.dart';
 
 Future<void> main() async {
@@ -32,22 +33,44 @@ Future<void> main() async {
 class GlitterListApp extends StatelessWidget {
   const GlitterListApp({super.key});
 
+  ColorScheme _schemeFor(Brightness brightness) {
+    final base = ColorScheme.fromSeed(
+      seedColor: GlitterColors.hotPink,
+      brightness: brightness,
+    );
+    final isDark = brightness == Brightness.dark;
+    final bg = isDark ? GlitterColors.deepPurple : GlitterColors.lightPink;
+    final fg = isDark ? GlitterColors.lightPink : GlitterColors.deepPurple;
+    return base.copyWith(
+      surface: bg,
+      onSurface: fg,
+      primary: GlitterColors.hotPink,
+      onPrimary: GlitterColors.deepPurple,
+    );
+  }
+
+  ThemeData _buildTheme(Brightness brightness) {
+    final scheme = _schemeFor(brightness);
+    return ThemeData(
+      useMaterial3: true,
+      brightness: brightness,
+      fontFamily: 'Sniglet',
+      colorScheme: scheme,
+      scaffoldBackgroundColor: scheme.surface,
+      appBarTheme: AppBarTheme(
+        backgroundColor: scheme.surface,
+        foregroundColor: scheme.onSurface,
+      ),
+    );
+  }
+
   @override
   Widget build(BuildContext context) {
     return MaterialApp(
       title: 'Glitter List',
       themeMode: ThemeMode.system,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(seedColor: Colors.pinkAccent),
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: ColorScheme.fromSeed(
-          seedColor: Colors.pinkAccent,
-          brightness: Brightness.dark,
-        ),
-      ),
+      theme: _buildTheme(Brightness.light),
+      darkTheme: _buildTheme(Brightness.dark),
       home: const HomePage(),
     );
   }
