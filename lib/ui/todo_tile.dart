@@ -138,6 +138,7 @@ class _TodoTileState extends ConsumerState<TodoTile>
             GlowingCheckbox(
               value: widget.item.done,
               glowColor: kCheckGlow,
+              borderColor: glitter.content,
               progress: _checkCtrl,
               onChanged: (_) =>
                   notifier.toggleItem(widget.listId, widget.item.id),

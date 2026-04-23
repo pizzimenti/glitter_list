@@ -34,13 +34,19 @@ class RainbowStrikethrough extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    // Merge the ambient DefaultTextStyle (fontFamily, height, etc. from
+    // the Theme) into baseStyle so the painter's TextPainter and the
+    // rendered Text compute line metrics against identical typography.
+    // Otherwise the painter falls back to the platform default font and
+    // its lines/baselines diverge from what the Text actually draws.
+    final resolved = DefaultTextStyle.of(context).style.merge(baseStyle);
     return AnimatedBuilder(
       animation: progress,
       builder: (_, _) {
         final t = progress.value.clamp(0.0, 1.0);
         final textColor =
-            Color.lerp(baseStyle.color, mutedColor, t) ?? baseStyle.color;
-        final styled = baseStyle.copyWith(color: textColor);
+            Color.lerp(resolved.color, mutedColor, t) ?? resolved.color;
+        final styled = resolved.copyWith(color: textColor);
         return CustomPaint(
           foregroundPainter: _StrikethroughPainter(
             progress: t,
@@ -74,25 +80,54 @@ class _StrikethroughPainter extends CustomPainter {
       maxLines: null,
     )..layout(maxWidth: size.width);
 
-    final strokeWidth = (style.fontSize ?? 16) * 0.1;
+    final strokeWidth = (style.fontSize ?? 16) * 0.07;
     final paintBase = Paint()
       ..style = PaintingStyle.stroke
       ..strokeWidth = strokeWidth
       ..strokeCap = StrokeCap.round;
     const gradient = LinearGradient(colors: _rainbow);
 
-    // Draw one rainbow segment per laid-out line so wrapped text gets a
-    // strikethrough on every line, vertically centered on that line.
+    // One rainbow segment per laid-out line. Progress is split equally
+    // across lines so they draw sequentially rather than in parallel —
+    // line i goes from t=i/N to t=(i+1)/N of the overall animation.
+    // The gradient spans the TOTAL text width (sum of line widths) so
+    // color cycles through once across the whole item; each line uses a
+    // shader offset by its cumulative start so the rainbow continues
+    // seamlessly from one line to the next.
     final lines = tp.computeLineMetrics();
-    for (final line in lines) {
+    final n = lines.length;
+    if (n == 0) {
+      tp.dispose();
+      return;
+    }
+    final totalWidth =
+        lines.fold<double>(0, (sum, line) => sum + line.width);
+    if (totalWidth <= 0) {
+      tp.dispose();
+      return;
+    }
+
+    var cumulative = 0.0;
+    for (var i = 0; i < n; i++) {
+      final line = lines[i];
       final lineWidth = line.width;
       if (lineWidth <= 0) continue;
-      final y = line.baseline - line.ascent + line.height / 2;
-      final endX = lineWidth * progress;
-      paintBase.shader = gradient.createShader(
-        Rect.fromLTWH(0, y - strokeWidth / 2, lineWidth, strokeWidth),
-      );
-      canvas.drawLine(Offset(0, y), Offset(endX, y), paintBase);
+
+      final lineProgress = ((progress * n) - i).clamp(0.0, 1.0);
+      if (lineProgress > 0) {
+        final y = line.baseline - line.ascent + line.height / 2 + 2;
+        final endX = lineWidth * lineProgress;
+        paintBase.shader = gradient.createShader(
+          Rect.fromLTWH(
+            -cumulative,
+            y - strokeWidth / 2,
+            totalWidth,
+            strokeWidth,
+          ),
+        );
+        canvas.drawLine(Offset(0, y), Offset(endX, y), paintBase);
+      }
+      cumulative += lineWidth;
     }
 
     tp.dispose();
@@ -104,7 +139,9 @@ class _StrikethroughPainter extends CustomPainter {
 }
 
 /// Wraps a [Checkbox] and paints a bell-curved glow around it during the
-/// 1s animation window.
+/// 1s animation window. The checkbox itself is scaled up for readability
+/// and keeps a visible [borderColor] border in both checked and unchecked
+/// states.
 class GlowingCheckbox extends StatelessWidget {
   const GlowingCheckbox({
     super.key,
@@ -112,20 +149,28 @@ class GlowingCheckbox extends StatelessWidget {
     required this.onChanged,
     required this.progress,
     required this.glowColor,
+    required this.borderColor,
+    this.scale = 1.3,
   });
 
   final bool value;
   final ValueChanged<bool?> onChanged;
   final Animation<double> progress;
   final Color glowColor;
+  final Color borderColor;
+  final double scale;
 
   @override
   Widget build(BuildContext context) {
-    final checkbox = Checkbox(
-      value: value,
-      visualDensity: VisualDensity.compact,
-      materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-      onChanged: onChanged,
+    final checkbox = Transform.scale(
+      scale: scale,
+      child: Checkbox(
+        value: value,
+        visualDensity: VisualDensity.compact,
+        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+        side: BorderSide(color: borderColor, width: 2),
+        onChanged: onChanged,
+      ),
     );
     return AnimatedBuilder(
       animation: progress,
