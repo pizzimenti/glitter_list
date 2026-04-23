@@ -66,9 +66,13 @@ class _HomePageState extends ConsumerState<HomePage> {
     final titleMaxWidth =
         (screenWidth - 16 - 48 - (state.lists.length > 1 ? 40 : 0) - 16)
             .clamp(100.0, double.infinity);
+    // Honor the user's system text scale. Without this, measured height
+    // underestimates the rendered Text when accessibility font-scaling
+    // is on, which can clip long titles at the bottom of the AppBar.
     final measured = TextPainter(
       text: TextSpan(text: titleText, style: titleStyle),
       textDirection: TextDirection.ltr,
+      textScaler: MediaQuery.textScalerOf(context),
       maxLines: 3,
     )..layout(maxWidth: titleMaxWidth);
     final measuredHeight = measured.height;
