@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
+import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 
@@ -66,16 +67,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
-      // Per-glyph diffusion cloud — Gaussian halo of surface color
-      // around each character, alpha ~ exp(-d^2 / 18) at distance d
-      // (px). Replaces the global scrim layer; bg stays raw past
-      // ~10 px from any letter.
-      shadows: [
-        Shadow(
-          color: Theme.of(context).colorScheme.surface,
-          blurRadius: 3,
-        ),
-      ],
+      // Per-glyph diffusion cloud — see GlitterShadows for the math.
+      shadows: GlitterShadows.aroundText(Theme.of(context).colorScheme.surface),
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side
