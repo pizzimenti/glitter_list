@@ -4,7 +4,13 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
-## [0.1.0] - 2026-04-23
+## [0.2.0] - 2026-04-29
+
+### Changed
+
+- **Glitter photo backgrounds.** Replaced the flat pink (`#FFD8F3`) and dark purple (`#2A1A3E`) page backgrounds with two real glitter textures — bright pink-magenta in light mode, deep iridescent purple in dark mode. The image fills the entire window full-bleed: status bar, AppBar, and list body all sit on the same texture for a single continuous surface. The original solid colors stay in `ColorScheme.surface` so dialogs, popup menus, and the modal bottom sheet keep their opaque chrome.
+
+
 
 First versioned cut of the app. Local-only multi-list todos with a glittery, offline-first Flutter build for Android and iOS.
 

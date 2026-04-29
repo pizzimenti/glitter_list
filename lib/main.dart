@@ -80,10 +80,12 @@ class GlitterListApp extends StatelessWidget {
       brightness: brightness,
       fontFamily: 'Sniglet',
       colorScheme: scheme,
-      scaffoldBackgroundColor: scheme.surface,
+      scaffoldBackgroundColor: Colors.transparent,
       appBarTheme: AppBarTheme(
-        backgroundColor: scheme.surface,
+        backgroundColor: Colors.transparent,
         foregroundColor: scheme.onSurface,
+        elevation: 0,
+        scrolledUnderElevation: 0,
       ),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: GlitterColors.accent,
