@@ -105,6 +105,17 @@ class _ScrollIndicator extends StatelessWidget {
       builder: (context, _) {
         if (!controller.hasClients) return const SizedBox.shrink();
         final pos = controller.position;
+        // `hasClients` only means a position is attached — its metrics
+        // (maxScrollExtent / pixels / viewportDimension) are still null
+        // until the first layout pass. Reading them in that window
+        // throws "Null check operator used on a null value" via the
+        // `!`-guarded getters, and the ErrorWidget renders into our
+        // 3-px column as a tall stripe of red text.
+        if (!pos.hasContentDimensions ||
+            !pos.hasPixels ||
+            !pos.hasViewportDimension) {
+          return const SizedBox.shrink();
+        }
         if (pos.maxScrollExtent <= 0) return const SizedBox.shrink();
         final visibleFrac = pos.viewportDimension /
             (pos.maxScrollExtent + pos.viewportDimension);

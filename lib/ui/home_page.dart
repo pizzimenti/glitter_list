@@ -234,6 +234,15 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // Vertical scrolls bubble up from the inner ReorderableListView;
                   // PageView's own horizontal scrolls bubble up too and are ignored.
                   if (n.metrics.axis != Axis.vertical) return false;
+                  // Same nullability gotcha as _ScrollIndicator: ScrollMetrics
+                  // exposes pixels / viewportDimension / maxScrollExtent through
+                  // !-guarded getters, so we only read them once the underlying
+                  // position has finished its first layout.
+                  if (!n.metrics.hasContentDimensions ||
+                      !n.metrics.hasPixels ||
+                      !n.metrics.hasViewportDimension) {
+                    return false;
+                  }
                   // Mapping: alignmentY = -1 + 2 * pixels / max(extent, 2*viewport).
                   // For short scrollable lists the denominator is 2*viewport, so
                   // bg moves at ~15% of text-scroll speed (matching the slow
