@@ -108,32 +108,46 @@ class _HomePageState extends ConsumerState<HomePage> {
           alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
         }
         // Scale the bg image past `cover` so panning has slack on BOTH
-        // axes. With plain `cover` on a portrait image + portrait phone
-        // there's only horizontal slack — alignment.y has no effect, so
-        // vertical scroll wouldn't move the bg at all. The Transform
-        // wraps only the bg layer; the Scaffold sits on top, untouched.
+        // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
+        // — so horizontal pan has ~60% more travel than vertical (matches
+        // the requested motion ratio: bigger horizontal swing on swipe
+        // than vertical swing on scroll). The Transform wraps only the bg
+        // layer; the Scaffold sits on top, untouched.
+        //
+        // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
+        // before the scrim layer so the colors stay vivid even after the
+        // 50% surface tint. Closest practical "HDR pop" we can do without
+        // wide-gamut image assets — Flutter's HDR/Display-P3 image
+        // pipeline is platform-limited today.
         return Stack(
           fit: StackFit.expand,
           children: [
             ColoredBox(color: surface),
             ClipRect(
-              child: Transform.scale(
-                scale: 1.3,
+              child: Transform(
+                transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
                 alignment: Alignment(alignmentX, _verticalT.value),
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(bgAsset),
                       fit: BoxFit.cover,
-                      colorFilter: ColorFilter.mode(
-                        surface.withValues(alpha: 0.5),
-                        BlendMode.srcOver,
-                      ),
+                      // Saturation matrix, s=1.3, Rec. 709 weights:
+                      // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
+                      colorFilter: const ColorFilter.matrix(<double>[
+                        1.23622, -0.21456, -0.02166, 0, 0,
+                        -0.06378, 1.08544, -0.02166, 0, 0,
+                        -0.06378, -0.21456, 1.27834, 0, 0,
+                        0, 0, 0, 1, 0,
+                      ]),
                     ),
                   ),
                 ),
               ),
             ),
+            // Scrim layer: applied AFTER saturation so the boost reads
+            // through, then the surface tint mutes it for legibility.
+            ColoredBox(color: surface.withValues(alpha: 0.5)),
             ?child,
           ],
         );
