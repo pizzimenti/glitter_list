@@ -9,6 +9,8 @@ All notable changes to **Glitter List** are documented here. The format follows 
 ### Changed
 
 - **Glitter photo backgrounds.** Replaced the flat pink (`#FFD8F3`) and dark purple (`#2A1A3E`) page backgrounds with two real glitter textures — bright pink-magenta in light mode, deep iridescent purple in dark mode. The image fills the entire window full-bleed: status bar, AppBar, and list body all sit on the same texture for a single continuous surface. The original solid colors stay in `ColorScheme.surface` so dialogs, popup menus, and the modal bottom sheet keep their opaque chrome.
+- **Diffusion scrim** softens the texture behind text. A 30%-alpha surface-tinted layer is composited over the image via `DecorationImage.colorFilter`, mixing the saturated glitter back toward the brand color so todo titles stay legible without losing the sparkle.
+- **Background slides with the swipe.** The background is wired to the `PageController` via `AnimatedBuilder`; as the user swipes between lists, the image's horizontal alignment pans in lockstep with the page offset (`Alignment(-1, 0)` at the first list, `Alignment(1, 0)` at the last). With `BoxFit.cover` already cropping horizontal slack, the effect feels like the glitter is one continuous surface that the lists glide across.
 
 
 

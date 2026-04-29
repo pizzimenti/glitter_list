@@ -79,18 +79,42 @@ class _HomePageState extends ConsumerState<HomePage> {
     measured.dispose();
     final toolbarHeight = math.max(kToolbarHeight, measuredHeight + 24);
 
-    final brightness = Theme.of(context).brightness;
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
     final bgAsset = brightness == Brightness.dark
         ? 'assets/images/bg_dark.png'
         : 'assets/images/bg_light.png';
+    final surface = theme.colorScheme.surface;
 
-    return DecoratedBox(
-      decoration: BoxDecoration(
-        image: DecorationImage(
-          image: AssetImage(bgAsset),
-          fit: BoxFit.cover,
-        ),
-      ),
+    return AnimatedBuilder(
+      animation: _controller,
+      builder: (context, child) {
+        final maxIndex = state.lists.length - 1;
+        double alignmentX = 0;
+        if (maxIndex > 0) {
+          // Before the controller has clients (first frame) `page` throws,
+          // so fall back to the initial index until the PageView attaches.
+          final page = _controller.hasClients
+              ? (_controller.page ?? state.currentListIndex.toDouble())
+              : state.currentListIndex.toDouble();
+          alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
+        }
+        return DecoratedBox(
+          decoration: BoxDecoration(
+            color: surface,
+            image: DecorationImage(
+              image: AssetImage(bgAsset),
+              fit: BoxFit.cover,
+              alignment: Alignment(alignmentX, 0),
+              colorFilter: ColorFilter.mode(
+                surface.withValues(alpha: 0.3),
+                BlendMode.srcOver,
+              ),
+            ),
+          ),
+          child: child,
+        );
+      },
       child: Scaffold(
         appBar: AppBar(
           toolbarHeight: toolbarHeight,
