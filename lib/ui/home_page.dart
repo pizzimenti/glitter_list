@@ -79,93 +79,108 @@ class _HomePageState extends ConsumerState<HomePage> {
     measured.dispose();
     final toolbarHeight = math.max(kToolbarHeight, measuredHeight + 24);
 
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: toolbarHeight,
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                titleText,
-                style: titleStyle,
-                maxLines: 3,
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
-              ),
-            ),
-            _PageDots(count: state.lists.length, index: state.currentListIndex),
-          ],
+    final brightness = Theme.of(context).brightness;
+    final bgAsset = brightness == Brightness.dark
+        ? 'assets/images/bg_dark.png'
+        : 'assets/images/bg_light.png';
+
+    return DecoratedBox(
+      decoration: BoxDecoration(
+        image: DecorationImage(
+          image: AssetImage(bgAsset),
+          fit: BoxFit.cover,
         ),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (action) async {
-              switch (action) {
-                case 'new':
-                  await showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    builder: (_) => const AddListSheet(),
-                  );
-                case 'rename':
-                  if (currentList != null) {
-                    await _promptRename(currentList.id, currentList.name);
-                  }
-                case 'clear':
-                  if (currentList != null) {
-                    final count =
-                        currentList.items.where((i) => i.done).length;
-                    await _confirmClearCompleted(currentList.id, count);
-                  }
-                case 'delete':
-                  if (currentList != null) {
-                    await _confirmDeleteList(currentList.id, currentList.name);
-                  }
-              }
-            },
-            itemBuilder: (_) => [
-              _MenuItem(
-                value: 'new',
-                icon: Icons.playlist_add,
-                label: 'New List',
+      ),
+      child: Scaffold(
+        appBar: AppBar(
+          toolbarHeight: toolbarHeight,
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                child: Text(
+                  titleText,
+                  style: titleStyle,
+                  maxLines: 3,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
+                ),
               ),
-              if (currentList != null)
-                _MenuItem(
-                  value: 'rename',
-                  icon: Icons.drive_file_rename_outline,
-                  label: 'Rename List',
-                ),
-              if (currentList != null &&
-                  currentList.items.any((i) => i.done))
-                _MenuItem(
-                  value: 'clear',
-                  icon: Icons.cleaning_services_outlined,
-                  label: 'Clear Completed',
-                ),
-              if (currentList != null)
-                _MenuItem(
-                  value: 'delete',
-                  icon: Icons.delete_outline,
-                  label: 'Delete List',
-                ),
+              _PageDots(
+                  count: state.lists.length, index: state.currentListIndex),
             ],
           ),
-        ],
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (action) async {
+                switch (action) {
+                  case 'new':
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => const AddListSheet(),
+                    );
+                  case 'rename':
+                    if (currentList != null) {
+                      await _promptRename(currentList.id, currentList.name);
+                    }
+                  case 'clear':
+                    if (currentList != null) {
+                      final count =
+                          currentList.items.where((i) => i.done).length;
+                      await _confirmClearCompleted(currentList.id, count);
+                    }
+                  case 'delete':
+                    if (currentList != null) {
+                      await _confirmDeleteList(
+                          currentList.id, currentList.name);
+                    }
+                }
+              },
+              itemBuilder: (_) => [
+                _MenuItem(
+                  value: 'new',
+                  icon: Icons.playlist_add,
+                  label: 'New List',
+                ),
+                if (currentList != null)
+                  _MenuItem(
+                    value: 'rename',
+                    icon: Icons.drive_file_rename_outline,
+                    label: 'Rename List',
+                  ),
+                if (currentList != null &&
+                    currentList.items.any((i) => i.done))
+                  _MenuItem(
+                    value: 'clear',
+                    icon: Icons.cleaning_services_outlined,
+                    label: 'Clear Completed',
+                  ),
+                if (currentList != null)
+                  _MenuItem(
+                    value: 'delete',
+                    icon: Icons.delete_outline,
+                    label: 'Delete List',
+                  ),
+              ],
+            ),
+          ],
+        ),
+        body: state.lists.isEmpty
+            ? const Center(child: Text('No lists'))
+            : PageView.builder(
+                controller: _controller,
+                itemCount: state.lists.length,
+                onPageChanged: notifier.switchList,
+                itemBuilder: (_, i) => ListPage(list: state.lists[i]),
+              ),
+        floatingActionButton: currentList == null
+            ? null
+            : FloatingActionButton(
+                onPressed: () => _promptAddItem(currentList.id),
+                child: const Icon(Icons.add),
+              ),
       ),
-      body: state.lists.isEmpty
-          ? const Center(child: Text('No lists'))
-          : PageView.builder(
-              controller: _controller,
-              itemCount: state.lists.length,
-              onPageChanged: notifier.switchList,
-              itemBuilder: (_, i) => ListPage(list: state.lists[i]),
-            ),
-      floatingActionButton: currentList == null
-          ? null
-          : FloatingActionButton(
-              onPressed: () => _promptAddItem(currentList.id),
-              child: const Icon(Icons.add),
-            ),
     );
   }
 
