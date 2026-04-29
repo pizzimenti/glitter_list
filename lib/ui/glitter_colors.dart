@@ -9,14 +9,14 @@ class GlitterColors {
   static const darkBg = Color(0xFF2A1A3E);
   static const lightChrome = Color(0xFF4A3270);
   static const darkChrome = Color(0xFFFCDDE7);
-  static const lightContent = Color(0xFFA32D6E);
-  static const darkContent = Color(0xFFD4BBEF);
+  // Content text uses one color across both modes so todo titles stay
+  // readable on either glitter background. Only the bg image and the
+  // AppBar / page-dot chrome change with brightness.
+  static const content = Color(0xFFD4BBEF);
   static const accent = Color(0xFFFF4FA3);
   static const onAccent = Color(0xFF2A1A3E);
 
   static Color bgFor(Brightness b) => b == Brightness.dark ? darkBg : lightBg;
   static Color chromeFor(Brightness b) =>
       b == Brightness.dark ? darkChrome : lightChrome;
-  static Color contentFor(Brightness b) =>
-      b == Brightness.dark ? darkContent : lightContent;
 }

@@ -95,7 +95,7 @@ class GlitterListApp extends StatelessWidget {
       ),
       extensions: [
         GlitterTheme(
-          content: GlitterColors.contentFor(brightness),
+          content: GlitterColors.content,
           titleFontSize: _titleFontSize,
           bodyFontSize: _bodyFontSize,
         ),

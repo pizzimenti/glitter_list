@@ -17,6 +17,11 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   late final PageController _controller;
+  // Background's vertical pan, mapped from the active list's scroll
+  // offset to [-1, +1]. Drives `Alignment(_, y)` on the bg image so
+  // glitter slides down as the list scrolls down.
+  final ValueNotifier<double> _verticalT = ValueNotifier(0);
+  late final Listenable _bgListenable;
 
   @override
   void initState() {
@@ -24,10 +29,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     _controller = PageController(
       initialPage: ref.read(appStateProvider).currentListIndex,
     );
+    _bgListenable = Listenable.merge([_controller, _verticalT]);
   }
 
   @override
   void dispose() {
+    _verticalT.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -87,7 +94,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     final surface = theme.colorScheme.surface;
 
     return AnimatedBuilder(
-      animation: _controller,
+      animation: _bgListenable,
       builder: (context, child) {
         final maxIndex = state.lists.length - 1;
         double alignmentX = 0;
@@ -105,7 +112,7 @@ class _HomePageState extends ConsumerState<HomePage> {
             image: DecorationImage(
               image: AssetImage(bgAsset),
               fit: BoxFit.cover,
-              alignment: Alignment(alignmentX, 0),
+              alignment: Alignment(alignmentX, _verticalT.value),
               colorFilter: ColorFilter.mode(
                 surface.withValues(alpha: 0.3),
                 BlendMode.srcOver,
@@ -192,11 +199,30 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: state.lists.isEmpty
             ? const Center(child: Text('No lists'))
-            : PageView.builder(
-                controller: _controller,
-                itemCount: state.lists.length,
-                onPageChanged: notifier.switchList,
-                itemBuilder: (_, i) => ListPage(list: state.lists[i]),
+            : NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  // Vertical scrolls bubble up from the inner ReorderableListView;
+                  // PageView's own horizontal scrolls bubble up too and are ignored.
+                  if (n.metrics.axis != Axis.vertical) return false;
+                  final extent = n.metrics.maxScrollExtent;
+                  final t = extent > 0
+                      ? ((n.metrics.pixels / extent) * 2 - 1)
+                          .clamp(-1.0, 1.0)
+                      : 0.0;
+                  if (_verticalT.value != t) _verticalT.value = t;
+                  return false;
+                },
+                child: PageView.builder(
+                  controller: _controller,
+                  itemCount: state.lists.length,
+                  onPageChanged: (i) {
+                    // New list comes in at scroll offset 0; reset so the bg
+                    // doesn't keep the previous list's vertical pan.
+                    _verticalT.value = 0;
+                    notifier.switchList(i);
+                  },
+                  itemBuilder: (_, i) => ListPage(list: state.lists[i]),
+                ),
               ),
         floatingActionButton: currentList == null
             ? null
