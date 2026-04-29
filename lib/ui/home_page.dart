@@ -106,20 +106,35 @@ class _HomePageState extends ConsumerState<HomePage> {
               : state.currentListIndex.toDouble();
           alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
         }
-        return DecoratedBox(
-          decoration: BoxDecoration(
-            color: surface,
-            image: DecorationImage(
-              image: AssetImage(bgAsset),
-              fit: BoxFit.cover,
-              alignment: Alignment(alignmentX, _verticalT.value),
-              colorFilter: ColorFilter.mode(
-                surface.withValues(alpha: 0.3),
-                BlendMode.srcOver,
+        // Scale the bg image past `cover` so panning has slack on BOTH
+        // axes. With plain `cover` on a portrait image + portrait phone
+        // there's only horizontal slack — alignment.y has no effect, so
+        // vertical scroll wouldn't move the bg at all. The Transform
+        // wraps only the bg layer; the Scaffold sits on top, untouched.
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(color: surface),
+            ClipRect(
+              child: Transform.scale(
+                scale: 1.3,
+                alignment: Alignment(alignmentX, _verticalT.value),
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(bgAsset),
+                      fit: BoxFit.cover,
+                      colorFilter: ColorFilter.mode(
+                        surface.withValues(alpha: 0.5),
+                        BlendMode.srcOver,
+                      ),
+                    ),
+                  ),
+                ),
               ),
             ),
-          ),
-          child: child,
+            ?child,
+          ],
         );
       },
       child: Scaffold(
