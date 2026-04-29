@@ -18,9 +18,10 @@ class HomePage extends ConsumerStatefulWidget {
 class _HomePageState extends ConsumerState<HomePage> {
   late final PageController _controller;
   // Background's vertical pan, mapped from the active list's scroll
-  // offset to [-1, +1]. Drives `Alignment(_, y)` on the bg image so
-  // glitter slides down as the list scrolls down.
-  final ValueNotifier<double> _verticalT = ValueNotifier(0);
+  // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
+  // glitter pans down as the list scrolls down. Starts at -1 (top of
+  // image, matching an unscrolled list).
+  final ValueNotifier<double> _verticalT = ValueNotifier(-1);
   late final Listenable _bgListenable;
 
   @override
@@ -219,11 +220,19 @@ class _HomePageState extends ConsumerState<HomePage> {
                   // Vertical scrolls bubble up from the inner ReorderableListView;
                   // PageView's own horizontal scrolls bubble up too and are ignored.
                   if (n.metrics.axis != Axis.vertical) return false;
+                  // Mapping: alignmentY = -1 + 2 * pixels / max(extent, 2*viewport).
+                  // For short scrollable lists the denominator is 2*viewport, so
+                  // bg moves at ~15% of text-scroll speed (matching the slow
+                  // parallax feel of the horizontal swipe). For very long lists
+                  // the denominator is the actual scroll extent, and bg pans the
+                  // full slack across the list — even slower per pixel.
+                  final viewport = n.metrics.viewportDimension;
                   final extent = n.metrics.maxScrollExtent;
-                  final t = extent > 0
-                      ? ((n.metrics.pixels / extent) * 2 - 1)
-                          .clamp(-1.0, 1.0)
-                      : 0.0;
+                  final denom =
+                      extent > 2 * viewport ? extent : 2 * viewport;
+                  final t = denom > 0
+                      ? (-1 + 2 * n.metrics.pixels / denom).clamp(-1.0, 1.0)
+                      : -1.0;
                   if (_verticalT.value != t) _verticalT.value = t;
                   return false;
                 },
@@ -231,9 +240,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                   controller: _controller,
                   itemCount: state.lists.length,
                   onPageChanged: (i) {
-                    // New list comes in at scroll offset 0; reset so the bg
-                    // doesn't keep the previous list's vertical pan.
-                    _verticalT.value = 0;
+                    // New list comes in at scroll offset 0 → bg back to top.
+                    _verticalT.value = -1;
                     notifier.switchList(i);
                   },
                   itemBuilder: (_, i) => ListPage(list: state.lists[i]),
