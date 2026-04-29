@@ -1,11 +1,10 @@
-import 'dart:ui' show ImageFilter;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/todo_item.dart';
 import '../state/app_state.dart';
 import 'check_animation.dart';
+import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 
 class TodoTile extends ConsumerStatefulWidget {
@@ -114,9 +113,11 @@ class _TodoTileState extends ConsumerState<TodoTile>
     final glitter = context.glitter;
     final scheme = Theme.of(context).colorScheme;
     final mutedColor = scheme.onSurface.withValues(alpha: 0.5);
+    // Per-glyph diffusion cloud — see GlitterShadows for the math.
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
+      shadows: GlitterShadows.aroundText(scheme.surface),
     );
 
     return ListTile(
@@ -148,31 +149,26 @@ class _TodoTileState extends ConsumerState<TodoTile>
           ],
         ),
       ),
-      title: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: _editing
-              ? TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  style: baseStyle,
-                  cursorColor: glitter.content,
-                  onSubmitted: (_) => _commit(),
-                  onTapOutside: (_) => _commit(),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
-                  ),
-                )
-              : RainbowStrikethrough(
-                  text: widget.item.text,
-                  baseStyle: baseStyle,
-                  mutedColor: mutedColor,
-                  progress: _checkCtrl,
-                ),
-        ),
-      ),
+      title: _editing
+          ? TextField(
+              controller: _controller,
+              focusNode: _focusNode,
+              style: baseStyle,
+              cursorColor: glitter.content,
+              onSubmitted: (_) => _commit(),
+              onTapOutside: (_) => _commit(),
+              decoration: const InputDecoration(
+                isDense: true,
+                contentPadding: EdgeInsets.zero,
+                border: InputBorder.none,
+              ),
+            )
+          : RainbowStrikethrough(
+              text: widget.item.text,
+              baseStyle: baseStyle,
+              mutedColor: mutedColor,
+              progress: _checkCtrl,
+            ),
       onTap: _editing ? null : _startEdit,
       onLongPress: _editing ? null : _showItemMenu,
       trailing: ReorderableDragStartListener(

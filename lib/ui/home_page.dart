@@ -1,11 +1,11 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
+import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 
@@ -67,6 +67,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
+      // Per-glyph diffusion cloud — see GlitterShadows for the math.
+      shadows: GlitterShadows.aroundText(Theme.of(context).colorScheme.surface),
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side
@@ -117,9 +119,9 @@ class _HomePageState extends ConsumerState<HomePage> {
         //
         // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
         // for an HDR-like pop. There's no global scrim layer — diffusion
-        // is delivered per text widget via ClipRect + BackdropFilter
-        // (Aero-style frosted strip) on the AppBar title and the
-        // TodoTile's title slot, so the bg blurs only behind the text.
+        // is delivered per-glyph via TextStyle.shadows in `titleStyle` and
+        // TodoTile's `baseStyle`, so the bg only mutes within ~10 px of
+        // text and stays raw everywhere else.
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -157,17 +159,12 @@ class _HomePageState extends ConsumerState<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Text(
-                      titleText,
-                      style: titleStyle,
-                      maxLines: 3,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
-                    ),
-                  ),
+                child: Text(
+                  titleText,
+                  style: titleStyle,
+                  maxLines: 3,
+                  softWrap: true,
+                  overflow: TextOverflow.ellipsis,
                 ),
               ),
               _PageDots(
