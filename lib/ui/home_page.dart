@@ -66,6 +66,16 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
+      // Per-glyph diffusion cloud — Gaussian halo of surface color
+      // around each character, alpha ~ exp(-d^2 / 18) at distance d
+      // (px). Replaces the global scrim layer; bg stays raw past
+      // ~10 px from any letter.
+      shadows: [
+        Shadow(
+          color: Theme.of(context).colorScheme.surface,
+          blurRadius: 3,
+        ),
+      ],
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side
@@ -115,10 +125,10 @@ class _HomePageState extends ConsumerState<HomePage> {
         // layer; the Scaffold sits on top, untouched.
         //
         // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
-        // before the scrim layer so the colors stay vivid even after the
-        // 50% surface tint. Closest practical "HDR pop" we can do without
-        // wide-gamut image assets — Flutter's HDR/Display-P3 image
-        // pipeline is platform-limited today.
+        // for an HDR-like pop. There's no global scrim layer — diffusion
+        // is delivered per-glyph via TextStyle.shadows in `titleStyle` and
+        // TodoTile's `baseStyle`, so the bg only mutes within ~10 px of
+        // text and stays raw everywhere else.
         return Stack(
           fit: StackFit.expand,
           children: [
@@ -145,9 +155,6 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ),
-            // Scrim layer: applied AFTER saturation so the boost reads
-            // through, then the surface tint mutes it for legibility.
-            ColoredBox(color: surface.withValues(alpha: 0.5)),
             ?child,
           ],
         );

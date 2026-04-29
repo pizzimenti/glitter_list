@@ -110,11 +110,17 @@ class _TodoTileState extends ConsumerState<TodoTile>
   Widget build(BuildContext context) {
     final notifier = ref.read(appStateProvider.notifier);
     final glitter = context.glitter;
-    final mutedColor =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
+    final scheme = Theme.of(context).colorScheme;
+    final mutedColor = scheme.onSurface.withValues(alpha: 0.5);
+    // Per-glyph diffusion cloud — see HomePage's titleStyle for the math.
+    // Surface-tinted Gaussian halo (sigma = 3 px) gives the bg a fading
+    // mute within ~10 px of each character; further out the bg stays raw.
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
+      shadows: [
+        Shadow(color: scheme.surface, blurRadius: 3),
+      ],
     );
 
     return ListTile(
