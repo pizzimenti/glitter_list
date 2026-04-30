@@ -12,7 +12,9 @@ If your pen case has gel pens, glitter pens, and at least three shades of pink, 
 - 📚 **Multiple lists** — Groceries. Errands. Wedding planning. Thursday. Whatever you need! Swipe left and right to flip between them 👉👈
 - 🔀 **Rearrange in a flash** — long-press and drag items exactly where they belong
 - ✅ **Tap to check off** — that little dopamine hit, on demand
-- ✏️ **Tap to edit** — no menus, no fuss, just tap and type
+- ✨ **Sparkle on tap** — every tap on an item kicks off a little burst of glitter, just because
+- 🪄 **Glitter any item** — long-press → "Glitter Item" draws a slow alternating pink/purple squiggle around it; un-glitter and it puffs away in a wisp of smoke
+- ✏️ **Long-press to edit or delete** — tap is for the dopamine hit, long-press is the menu
 - 📱 **Works offline** — no account, no sign-up, no nonsense. Your lists live on your phone.
 - 🎨 **Beautiful in light and dark mode** — matches your phone, matches your vibe
 
@@ -27,7 +29,8 @@ Life is already serious enough. Your to-do list shouldn't be. 🌷
 1. 📲 Open the app
 2. 📃 Tap the list icon to create your first list
 3. ➕ Tap the `+` to add items
-4. 🔄 Long-press and drag to reorder
+4. 🔄 Long-press the drag handle and drag to reorder
 5. 🎀 Swipe left or right to flip between lists
+6. 💖 Long-press an item for **Edit**, **Glitter Item**, or **Delete**
 
 That's it. Go sparkle. ✨🌈💖

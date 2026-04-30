@@ -43,8 +43,8 @@ class GlitterTheme extends ThemeExtension<GlitterTheme> {
 /// theme extension (notably: isolated widget tests).
 const GlitterTheme _fallbackGlitter = GlitterTheme(
   content: Color(0xFFA32D6E),
-  titleFontSize: 30,
-  bodyFontSize: 22,
+  titleFontSize: 34,
+  bodyFontSize: 26,
 );
 
 extension GlitterThemeOf on BuildContext {

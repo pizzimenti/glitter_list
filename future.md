@@ -28,13 +28,6 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# UI tweaks
-- bump the size of all elements higher across the app: checkboxes, text, borders, buttons. everything
-- fix the "New List" font for that dialog. it's using a different style (bold?) that makes it look out of place
-- add subtle frosted effect to the checkboxes themselves (ideally just the clear area inside the check box)
-- remove ability to tap-to-edit. tapping an item should only make it shimmer.
-- press to hold menu on an item should now contain edit item as well as delete.
-
 # Tilt-driven parallax (iOS 7 lineage)
 
 - **Status:** Candidate

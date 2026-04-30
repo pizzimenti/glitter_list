@@ -46,9 +46,9 @@ class _AddListSheetState extends ConsumerState<AddListSheet> {
         mainAxisSize: MainAxisSize.min,
         crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          const Text(
+          Text(
             'New list',
-            style: TextStyle(fontSize: 18, fontWeight: FontWeight.w600),
+            style: Theme.of(context).textTheme.titleLarge,
           ),
           const SizedBox(height: 12),
           TextField(

@@ -101,6 +101,21 @@ class AppStateNotifier extends _$AppStateNotifier {
     await _persist();
   }
 
+  Future<void> toggleGlitter(String listId, String itemId) async {
+    final idx = state.lists.indexWhere((l) => l.id == listId);
+    if (idx < 0) return;
+    final list = state.lists[idx];
+    final itemIdx = list.items.indexWhere((i) => i.id == itemId);
+    if (itemIdx < 0) return;
+    final items = [...list.items];
+    items[itemIdx] =
+        items[itemIdx].copyWith(glittered: !items[itemIdx].glittered);
+    final lists = [...state.lists];
+    lists[idx] = list.copyWith(items: items);
+    state = state.copyWith(lists: lists);
+    await _persist();
+  }
+
   Future<void> editItemText(String listId, String itemId, String text) async {
     final idx = state.lists.indexWhere((l) => l.id == listId);
     if (idx < 0) return;

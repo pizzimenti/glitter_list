@@ -5,6 +5,7 @@ import '../models/todo_list.dart';
 import '../state/app_state.dart';
 import 'baked_bg.dart';
 import 'glitter_theme.dart';
+import 'per_line_backdrop_blur.dart';
 import 'todo_tile.dart';
 
 class ListPage extends ConsumerStatefulWidget {
@@ -34,12 +35,34 @@ class _ListPageState extends ConsumerState<ListPage> {
   @override
   Widget build(BuildContext context) {
     if (widget.list.items.isEmpty) {
-      return const Center(
-        child: Padding(
-          padding: EdgeInsets.all(24),
-          child: Text(
-            'Empty list.\nTap + to add an item.',
-            textAlign: TextAlign.center,
+      final glitter = context.glitter;
+      final heroHeight = MediaQuery.sizeOf(context).height / 3;
+      final emptyStyle = TextStyle(
+        color: glitter.content,
+        fontSize: glitter.bodyFontSize * 2,
+        height: 1.2,
+      );
+      return SafeArea(
+        top: false,
+        child: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(24),
+            child: Column(
+              mainAxisSize: MainAxisSize.min,
+              crossAxisAlignment: CrossAxisAlignment.center,
+              children: [
+                Image.asset(
+                  'assets/images/caticorn.png',
+                  height: heroHeight,
+                  fit: BoxFit.contain,
+                ),
+                const SizedBox(height: 24),
+                PerLineBackdropBlur(
+                  text: 'Empty list.\nTap + to add an item.',
+                  style: emptyStyle,
+                ),
+              ],
+            ),
           ),
         ),
       );
