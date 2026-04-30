@@ -2,9 +2,12 @@ import 'dart:math' as math;
 import 'dart:ui' show lerpDouble;
 
 import 'package:flutter/material.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import 'baked_bg.dart';
 import 'glitter_colors.dart';
 import 'per_line_backdrop_blur.dart';
+import 'pre_baked_backdrop.dart';
 
 const _rainbow = <Color>[
   Color(0xFFFF3B30),
@@ -163,7 +166,7 @@ class _StrikethroughPainter extends CustomPainter {
 /// 1s animation window. The checkbox itself is scaled up for readability
 /// and keeps a visible [borderColor] border in both checked and unchecked
 /// states.
-class GlowingCheckbox extends StatelessWidget {
+class GlowingCheckbox extends ConsumerWidget {
   const GlowingCheckbox({
     super.key,
     required this.value,
@@ -171,7 +174,7 @@ class GlowingCheckbox extends StatelessWidget {
     required this.progress,
     required this.glowColor,
     required this.borderColor,
-    this.scale = 1.3,
+    this.scale = 1.55,
   });
 
   final bool value;
@@ -182,15 +185,41 @@ class GlowingCheckbox extends StatelessWidget {
   final double scale;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final viewportSize = MediaQuery.sizeOf(context);
+    final bakedAsync = ref.watch(
+      bakedBgProvider(BakedBgKey(brightness: brightness, size: viewportSize)),
+    );
+    final baked = bakedAsync.value;
+
+    // M3 Checkbox paints transparent fill in unselected state; frost
+    // shows through. When checked, primary fill paints over the frost.
+    final frosted = baked == null
+        ? const SizedBox.shrink()
+        : SizedBox(
+            width: 18,
+            height: 18,
+            child: ClipRRect(
+              borderRadius: const BorderRadius.all(Radius.circular(2)),
+              child: PreBakedBackdrop(baked: baked),
+            ),
+          );
+
     final checkbox = Transform.scale(
       scale: scale,
-      child: Checkbox(
-        value: value,
-        visualDensity: VisualDensity.compact,
-        materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
-        side: BorderSide(color: borderColor, width: 2),
-        onChanged: onChanged,
+      child: Stack(
+        alignment: Alignment.center,
+        children: [
+          frosted,
+          Checkbox(
+            value: value,
+            visualDensity: VisualDensity.compact,
+            materialTapTargetSize: MaterialTapTargetSize.shrinkWrap,
+            side: BorderSide(color: borderColor, width: 2.5),
+            onChanged: onChanged,
+          ),
+        ],
       ),
     );
     return AnimatedBuilder(

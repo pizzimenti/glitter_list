@@ -9,6 +9,7 @@ import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 import 'per_line_backdrop_blur.dart';
+import 'pre_baked_backdrop.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -77,8 +78,7 @@ class _HomePageState extends ConsumerState<HomePage> {
     // so wrapping triggers before ellipsis would.
     final screenWidth = MediaQuery.of(context).size.width;
     final titleMaxWidth =
-        (screenWidth - 16 - 48 - (state.lists.length > 1 ? 40 : 0) - 16)
-            .clamp(100.0, double.infinity);
+        (screenWidth - 16 - 48 - 16).clamp(100.0, double.infinity);
     // Honor the user's system text scale. Without this, measured height
     // underestimates the rendered Text when accessibility font-scaling
     // is on, which can clip long titles at the bottom of the AppBar.
@@ -184,10 +184,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                   ),
                 ),
               ),
-              _PageDots(
-                  count: state.lists.length, index: state.currentListIndex),
             ],
           ),
+          bottom: state.lists.length > 1
+              ? PreferredSize(
+                  preferredSize: const Size.fromHeight(20),
+                  child: _PageDots(
+                    count: state.lists.length,
+                    index: state.currentListIndex,
+                  ),
+                )
+              : null,
           actions: [
             PopupMenuButton<String>(
               onSelected: (action) async {
@@ -455,7 +462,7 @@ class _MenuItem extends PopupMenuItem<String> {
     required IconData icon,
     required String label,
   }) : super(
-          height: 72,
+          height: 80,
           child: _MenuItemRow(icon: icon, label: label),
         );
 }
@@ -470,39 +477,58 @@ class _MenuItemRow extends StatelessWidget {
   Widget build(BuildContext context) {
     return Row(
       children: [
-        Icon(icon, size: 24),
+        Icon(icon, size: 28),
         const SizedBox(width: 14),
-        Text(label, style: const TextStyle(fontSize: 20)),
+        Text(label, style: const TextStyle(fontSize: 24)),
       ],
     );
   }
 }
 
-class _PageDots extends StatelessWidget {
+class _PageDots extends ConsumerWidget {
   const _PageDots({required this.count, required this.index});
 
   final int count;
   final int index;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (count <= 1) return const SizedBox.shrink();
     final color = Theme.of(context).colorScheme.onSurface;
-    return Row(
-      mainAxisSize: MainAxisSize.min,
-      children: List.generate(count, (i) {
-        final active = i == index;
-        return AnimatedContainer(
-          duration: const Duration(milliseconds: 200),
-          width: active ? 10 : 6,
-          height: 6,
-          margin: const EdgeInsets.symmetric(horizontal: 2),
-          decoration: BoxDecoration(
-            color: active ? color : color.withValues(alpha: 0.4),
-            borderRadius: BorderRadius.circular(3),
-          ),
-        );
-      }),
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final viewportSize = MediaQuery.sizeOf(context);
+    final baked = ref
+        .watch(bakedBgProvider(
+            BakedBgKey(brightness: brightness, size: viewportSize)))
+        .value;
+    final dots = Padding(
+      padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
+      child: Row(
+        mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+        children: List.generate(count, (i) {
+          final active = i == index;
+          return AnimatedContainer(
+            duration: const Duration(milliseconds: 200),
+            width: active ? 12 : 8,
+            height: 8,
+            margin: const EdgeInsets.symmetric(horizontal: 2),
+            decoration: BoxDecoration(
+              color: active ? color : color.withValues(alpha: 0.4),
+              borderRadius: BorderRadius.circular(3),
+            ),
+          );
+        }),
+      ),
+    );
+    if (baked == null) return dots;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(
+          child: ClipRect(child: PreBakedBackdrop(baked: baked)),
+        ),
+        dots,
+      ],
     );
   }
 }

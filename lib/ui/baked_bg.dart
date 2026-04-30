@@ -63,7 +63,7 @@ const ColorFilter _saturationFilter = ColorFilter.matrix(<double>[
 
 /// Effective Gaussian blur sigma the strips render with, in *logical*
 /// screen pixels. Same value the prior `BackdropFilter` chain used.
-const double _effectiveBlurSigma = 10;
+const double _effectiveBlurSigma = 8;
 
 /// Parallax oversize factor — must match the Transform applied to the
 /// live bg layer in `home_page.dart` so the bake covers exactly the

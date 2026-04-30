@@ -1,7 +1,7 @@
 name: glitter_list
 description: "Glitter List — local-only multi-list todo."
 publish_to: 'none'
-version: 0.3.0+3
+version: 0.4.0+4
 
 environment:
   sdk: ^3.11.5
@@ -29,6 +29,7 @@ flutter:
   assets:
     - assets/images/bg_light.png
     - assets/images/bg_dark.png
+    - assets/images/caticorn.png
   fonts:
     - family: Sniglet
       fonts:

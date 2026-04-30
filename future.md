@@ -63,3 +63,11 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 ---
 
 <!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
+# Export / backup mechanism
+
+- **Status:** Candidate
+- **Priority:** Medium
+- **Why:** Today, every list lives in the Hive box on the device. A reinstall, a lost phone, or a "send my groceries to my partner" moment all fall off the cliff. We need both a backup story (so reinstalls survive) and a share story (so a list can move out of the app).
+- **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
+- **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
+- **Depends on:** Nothing.

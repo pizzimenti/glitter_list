@@ -4,6 +4,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 import '../models/todo_item.dart';
 import '../state/app_state.dart';
 import 'check_animation.dart';
+import 'glitter_outline.dart';
 import 'glitter_theme.dart';
 
 class TodoTile extends ConsumerStatefulWidget {
@@ -23,11 +24,12 @@ class TodoTile extends ConsumerStatefulWidget {
 }
 
 class _TodoTileState extends ConsumerState<TodoTile>
-    with SingleTickerProviderStateMixin {
+    with TickerProviderStateMixin {
   bool _editing = false;
   late final TextEditingController _controller;
   final FocusNode _focusNode = FocusNode();
   late final AnimationController _checkCtrl;
+  late final AnimationController _shimmerCtrl;
 
   @override
   void initState() {
@@ -37,6 +39,10 @@ class _TodoTileState extends ConsumerState<TodoTile>
       vsync: this,
       duration: const Duration(seconds: 1),
       value: widget.item.done ? 1.0 : 0.0,
+    );
+    _shimmerCtrl = AnimationController(
+      vsync: this,
+      duration: const Duration(milliseconds: 800),
     );
   }
 
@@ -60,6 +66,7 @@ class _TodoTileState extends ConsumerState<TodoTile>
     _controller.dispose();
     _focusNode.dispose();
     _checkCtrl.dispose();
+    _shimmerCtrl.dispose();
     super.dispose();
   }
 
@@ -85,11 +92,22 @@ class _TodoTileState extends ConsumerState<TodoTile>
   }
 
   Future<void> _showItemMenu() async {
+    final isGlittered = widget.item.glittered;
     final action = await showModalBottomSheet<String>(
       context: context,
       builder: (ctx) => SafeArea(
         child: Wrap(
           children: [
+            ListTile(
+              leading: const Icon(Icons.edit_outlined),
+              title: const Text('Edit'),
+              onTap: () => Navigator.pop(ctx, 'edit'),
+            ),
+            ListTile(
+              leading: const Text('🪄', style: TextStyle(fontSize: 24)),
+              title: Text(isGlittered ? 'Un-Glitter Item' : 'Glitter Item'),
+              onTap: () => Navigator.pop(ctx, 'glitter'),
+            ),
             ListTile(
               leading: const Icon(Icons.delete_outline),
               title: const Text('Delete'),
@@ -99,10 +117,18 @@ class _TodoTileState extends ConsumerState<TodoTile>
         ),
       ),
     );
-    if (action == 'delete' && mounted) {
-      await ref
-          .read(appStateProvider.notifier)
-          .deleteItem(widget.listId, widget.item.id);
+    if (!mounted) return;
+    switch (action) {
+      case 'edit':
+        _startEdit();
+      case 'glitter':
+        await ref
+            .read(appStateProvider.notifier)
+            .toggleGlitter(widget.listId, widget.item.id);
+      case 'delete':
+        await ref
+            .read(appStateProvider.notifier)
+            .deleteItem(widget.listId, widget.item.id);
     }
   }
 
@@ -120,10 +146,10 @@ class _TodoTileState extends ConsumerState<TodoTile>
     return ListTile(
       key: widget.key,
       visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 18),
+      contentPadding: const EdgeInsets.symmetric(horizontal: 22),
       leading: SizedBox(
-        width: 56,
-        height: 56,
+        width: 64,
+        height: 64,
         child: Stack(
           alignment: Alignment.center,
           clipBehavior: Clip.none,
@@ -132,6 +158,12 @@ class _TodoTileState extends ConsumerState<TodoTile>
             Positioned.fill(
               child: SparkleBurst(
                 progress: _checkCtrl,
+                color: kCheckGlow,
+              ),
+            ),
+            Positioned.fill(
+              child: SparkleBurst(
+                progress: _shimmerCtrl,
                 color: kCheckGlow,
               ),
             ),
@@ -170,14 +202,24 @@ class _TodoTileState extends ConsumerState<TodoTile>
                   border: InputBorder.none,
                 ),
               )
-            : RainbowStrikethrough(
-                text: widget.item.text,
-                baseStyle: baseStyle,
-                mutedColor: mutedColor,
-                progress: _checkCtrl,
+            : Stack(
+                children: [
+                  GlitterOutline(
+                    text: widget.item.text,
+                    style: baseStyle,
+                    glittered: widget.item.glittered,
+                    seed: widget.item.id.hashCode,
+                  ),
+                  RainbowStrikethrough(
+                    text: widget.item.text,
+                    baseStyle: baseStyle,
+                    mutedColor: mutedColor,
+                    progress: _checkCtrl,
+                  ),
+                ],
               ),
       ),
-      onTap: _editing ? null : _startEdit,
+      onTap: _editing ? null : () => _shimmerCtrl.forward(from: 0),
       onLongPress: _editing ? null : _showItemMenu,
       trailing: ReorderableDragStartListener(
         index: widget.index,

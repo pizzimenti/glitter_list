@@ -143,8 +143,8 @@ List<TodoList> _seedLists() {
 class GlitterListApp extends StatelessWidget {
   const GlitterListApp({super.key});
 
-  static const _titleFontSize = 30.0;
-  static const _bodyFontSize = 22.0;
+  static const _titleFontSize = 34.0;
+  static const _bodyFontSize = 26.0;
 
   ColorScheme _schemeFor(Brightness brightness) {
     final base = ColorScheme.fromSeed(
@@ -173,11 +173,12 @@ class GlitterListApp extends StatelessWidget {
         elevation: 0,
         scrolledUnderElevation: 0,
       ),
+      iconTheme: const IconThemeData(size: 28),
       floatingActionButtonTheme: const FloatingActionButtonThemeData(
         backgroundColor: GlitterColors.accent,
         foregroundColor: GlitterColors.onAccent,
-        sizeConstraints: BoxConstraints.tightFor(width: 67.2, height: 67.2),
-        iconSize: 28,
+        sizeConstraints: BoxConstraints.tightFor(width: 78.0, height: 78.0),
+        iconSize: 32,
       ),
       extensions: [
         GlitterTheme(

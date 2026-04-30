@@ -4,6 +4,22 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.4.0] - 2026-04-30
+
+### Changed
+
+- **Bigger, comfier UI.** Title text 30→34, body text 22→26, FAB 67.2→78 with a 32-px icon, checkbox scale 1.3→1.55 with a 2.5-px border, overflow menu rows 72→80 with 28-px icons and 24-px labels, page dots 10/6→12/8 width × 8 height. Added a global `IconThemeData(size: 28)` so default icons (drag handle, app-bar overflow, etc.) inherit the bumped size instead of Material's 24.
+- **"New list" sheet title now matches dialog titles.** The bottom sheet was hard-coding `fontSize: 18, fontWeight: FontWeight.w600`; Sniglet's weight axis doesn't carry w600 so the engine fell back to a different glyph rendering and the title read "off." Now uses `Theme.of(context).textTheme.titleLarge`, the same path Material's `AlertDialog` uses for its title — so the bottom sheet looks the same as the Rename / Delete / New Item dialogs.
+- **Frosted square inside the checkbox.** A 18×18 px slice of the pre-baked, pre-blurred bg is composited behind the unchecked Material `Checkbox` (M3's transparent unselected fill lets it show through, the checked-state primary fill paints over it). Reuses the existing `PreBakedBackdrop` primitive — no new bake or shader — so the frost samples the same parallax slice the surrounding bg renders. `GlowingCheckbox` is now a `ConsumerWidget` so it can read `bakedBgProvider`; constructor surface is unchanged.
+- **Tap is for the sparkle now, not for editing.** Tapping a list item used to enter inline edit; that's gone. Tap fires a second `SparkleBurst` driven by a dedicated `_shimmerCtrl` (800 ms) — emanating from the checkbox like the existing toggle sparkles, but without firing the rainbow strikethrough or muted-color crossfade. The done-toggle animation chain (`_checkCtrl`) is untouched; the two controllers can fire independently or simultaneously.
+- **Long-press menu has Edit and Glitter Item now, not just Delete.** Long-pressing an item opens the bottom sheet with three rows in this order: **Edit** (`Icons.edit_outlined`) → **🪄 Glitter Item** / **🪄 Un-Glitter Item** (label flips on the item's persisted `glittered` flag) → **Delete**. Edit-from-menu lands the cursor in the inline `TextField` exactly the way edit-from-tap used to.
+- **Page dots moved to their own line.** Previously the dots sat scrunched at the right of the AppBar title row, sharing horizontal budget with multi-line titles. They're now hosted in `AppBar.bottom` as a 20-px-tall `PreferredSize`, evenly distributed across the full app width via `Padding(horizontal: 16) → Row(mainAxisAlignment: spaceEvenly)`, and only render when the user has more than one list. The title's `titleMaxWidth` budget no longer reserves space for them.
+
+### Added
+
+- **🪄 Glitter Item.** New per-item flag `glittered` persists through Hive's `toMap`/`fromMap` round-trip on `TodoItem`. When true, the new `GlitterOutline` widget (`lib/ui/glitter_outline.dart`) overlays the item's text with a per-line squiggly stroke that traces the line's tight rect — alternating segments of `GlitterColors.accent` (pink) and `GlitterColors.lightChrome` (royal purple), seeded off the item's id so the squiggle is stable across rebuilds. Drawing eases in over 1.2 s split per line (same per-line slicing pattern as `_StrikethroughPainter` in `check_animation.dart`). Toggling off plays a 350 ms reverse: stroke alpha fades while ~10 small white particles per line drift up + outward and fade. New `AppStateNotifier.toggleGlitter(listId, itemId)` flips the flag and persists.
+- **Empty-list caticorn hero.** When a list has zero items, `assets/images/caticorn.png` (a sparkly unicorn carrying a tortie cat) now centers on the page taking ~⅓ of the screen height, with the existing "Empty list. / Tap + to add an item." text doubled in size (`bodyFontSize * 2`) sitting beneath it. The text is rendered through `PerLineBackdropBlur` so each line gets the same frosted strip every list item already uses — legibility on the saturated bg matches the rest of the app.
+
 ## [0.3.0] - 2026-04-30
 
 ### Changed
