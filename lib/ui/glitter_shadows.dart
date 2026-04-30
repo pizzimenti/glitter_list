@@ -14,20 +14,22 @@ import 'package:flutter/material.dart';
 class GlitterShadows {
   const GlitterShadows._();
 
-  // 10 stacked shadows of sigma = 100 px, each at 80% surface alpha. The
-  // larger sigma widens the cloud; the per-shadow alpha drop trims the
-  // overall intensity ~20% so the bg shows through more.
+  // 5 stacked shadows of sigma = 140 px, each at 40% surface alpha.
+  // Halves both stack count and per-shadow alpha vs. the prior tuning
+  // (10 × σ=100, α=0.8); bumps sigma another 40% so the cloud reaches
+  // further out. Net: roughly half the cumulative alpha across the
+  // profile, with a wider tail.
   //
-  //     d (px) | per-shadow → cumulative over 10
-  //     -------|--------------------------------
-  //        0   |  ~0.40  →  ~99.4%
-  //       20   |  ~0.34  →  ~98%
-  //       50   |  ~0.25  →  ~93%
-  //      100   |  ~0.13  →  ~75%
-  //      150   |  ~0.05  →  ~40%
-  //      200   |  ~0.02  →  ~14%
+  //     d (px) | per-shadow → cumulative over 5
+  //     -------|-------------------------------
+  //        0   |  ~0.20  →  ~67%
+  //       20   |  ~0.18  →  ~62%
+  //       50   |  ~0.14  →  ~54%
+  //      100   |  ~0.10  →  ~39%
+  //      150   |  ~0.06  →  ~26%
+  //      200   |  ~0.03  →  ~15%
   static List<Shadow> aroundText(Color surface) => List.filled(
-        10,
-        Shadow(color: surface.withValues(alpha: 0.8), blurRadius: 100),
+        5,
+        Shadow(color: surface.withValues(alpha: 0.4), blurRadius: 140),
       );
 }
