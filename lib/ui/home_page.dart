@@ -22,7 +22,17 @@ class _HomePageState extends ConsumerState<HomePage> {
   // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
   // glitter pans down as the list scrolls down. Starts at -1 (top of
   // image, matching an unscrolled list).
+  //
+  // The value is **only committed on ScrollEndNotification**, not on
+  // every ScrollUpdateNotification. While the user is actively
+  // scrolling we keep the latest target in `_pendingVerticalT` and
+  // hold the bg layer static, so the per-tile BackdropFilter samples
+  // a stable backdrop for the duration of the gesture and the engine
+  // re-rasterization race that produces vertical-scroll tearing
+  // (Flutter #138615 / #141510) doesn't fire. Bg snaps to its
+  // parallax-correct position the instant the scroll settles.
   final ValueNotifier<double> _verticalT = ValueNotifier(-1);
+  double _pendingVerticalT = -1;
   late final Listenable _bgListenable;
 
   @override
@@ -267,7 +277,14 @@ class _HomePageState extends ConsumerState<HomePage> {
                   final t = denom > 0
                       ? (-1 + 2 * n.metrics.pixels / denom).clamp(-1.0, 1.0)
                       : -1.0;
-                  if (_verticalT.value != t) _verticalT.value = t;
+                  // Buffer the target during active scroll so the bg
+                  // layer stays static (BackdropFilter snapshots remain
+                  // stable). Commit on scroll end only.
+                  _pendingVerticalT = t;
+                  if (n is ScrollEndNotification &&
+                      _verticalT.value != _pendingVerticalT) {
+                    _verticalT.value = _pendingVerticalT;
+                  }
                   return false;
                 },
                 child: PageView.builder(
@@ -276,6 +293,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   onPageChanged: (i) {
                     // New list comes in at scroll offset 0 → bg back to top.
                     _verticalT.value = -1;
+                    _pendingVerticalT = -1;
                     notifier.switchList(i);
                   },
                   itemBuilder: (_, i) => ListPage(list: state.lists[i]),
