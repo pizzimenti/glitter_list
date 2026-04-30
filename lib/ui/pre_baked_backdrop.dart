@@ -153,11 +153,46 @@ class _RenderPreBakedBackdrop extends RenderBox {
       size.height,
     );
 
+    // Save a layer so the radial alpha mask below composites against
+    // the freshly-drawn image only — not against whatever was painted
+    // into the parent canvas before us.
+    context.canvas.saveLayer(dst, Paint());
     context.canvas.drawImageRect(
       _baked.image,
       src,
       dst,
       Paint()..filterQuality = ui.FilterQuality.medium,
     );
+    // Vertical linear alpha feather: transparent at top, opaque through
+    // the middle band, transparent at bottom. BlendMode.dstIn keeps the
+    // blurred image's pixels only where this gradient has alpha — so
+    // the top and bottom edges of the strip fade to the unblurred live
+    // bg behind us, while the line itself sits in a fully-blurred band.
+    final maskPaint = Paint()
+      ..blendMode = BlendMode.dstIn
+      ..shader = ui.Gradient.linear(
+        Offset(dst.center.dx, dst.top),
+        Offset(dst.center.dx, dst.bottom),
+        const [
+          Color(0x00000000),
+          Color(0xFF000000),
+          Color(0xFF000000),
+          Color(0x00000000),
+        ],
+        const [
+          0.0,
+          _featherFraction,
+          1.0 - _featherFraction,
+          1.0,
+        ],
+      );
+    context.canvas.drawRect(dst, maskPaint);
+    context.canvas.restore();
   }
 }
+
+/// Vertical feather size as a fraction of the strip's height — the
+/// gradient fades in from 0 to 1 over the top `_featherFraction` of the
+/// strip and back to 0 over the bottom `_featherFraction`. Higher → wider
+/// fade band, narrower fully-blurred middle.
+const double _featherFraction = 0.25;
