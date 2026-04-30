@@ -1,5 +1,4 @@
 import 'dart:math' as math;
-import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -8,6 +7,7 @@ import '../state/app_state.dart';
 import 'add_list_sheet.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
+import 'per_line_backdrop_blur.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -158,23 +158,17 @@ class _HomePageState extends ConsumerState<HomePage> {
             children: [
               Expanded(
                 // Align without widthFactor fills the Expanded slot but
-                // hands a loose constraint to the child, so the BackdropFilter
-                // wraps just the Text's intrinsic width — blur stops where
-                // the glyphs do, not at the AppBar's right edge.
+                // hands a loose constraint to PerLineBackdropBlur, which
+                // sizes itself to the laid-out text — per-line strips,
+                // tight to each line's content. AppBar isn't inside any
+                // scrollable so this stays ungrouped.
                 child: Align(
                   alignment: AlignmentDirectional.centerStart,
-                  child: ClipRRect(
-                    borderRadius: BorderRadius.circular(8),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Text(
-                        titleText,
-                        style: titleStyle,
-                        maxLines: 3,
-                        softWrap: true,
-                        overflow: TextOverflow.ellipsis,
-                      ),
-                    ),
+                  child: PerLineBackdropBlur(
+                    text: titleText,
+                    style: titleStyle,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
                   ),
                 ),
               ),
@@ -240,8 +234,14 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: state.lists.isEmpty
             ? const Center(child: Text('No lists'))
-            : NotificationListener<ScrollNotification>(
-                onNotification: (n) {
+            // BackdropGroup so all per-line BackdropFilter.grouped strips
+            // inside the PageView share one backdrop snapshot per frame —
+            // eliminates the vertical-scroll re-rasterization tearing the
+            // ungrouped pattern hits inside scrollables (Flutter
+            // #104769, #138615, #141510, #161262).
+            : BackdropGroup(
+                child: NotificationListener<ScrollNotification>(
+                  onNotification: (n) {
                   // Vertical scrolls bubble up from the inner ReorderableListView;
                   // PageView's own horizontal scrolls bubble up too and are ignored.
                   if (n.metrics.axis != Axis.vertical) return false;
@@ -280,6 +280,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   },
                   itemBuilder: (_, i) => ListPage(list: state.lists[i]),
                 ),
+              ),
               ),
         floatingActionButton: currentList == null
             ? null

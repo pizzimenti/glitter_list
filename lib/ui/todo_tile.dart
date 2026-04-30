@@ -1,4 +1,4 @@
-import 'dart:ui' show ImageFilter;
+import 'dart:ui' show ImageFilter, TileMode;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
@@ -149,17 +149,26 @@ class _TodoTileState extends ConsumerState<TodoTile>
         ),
       ),
       // Align hands a loose constraint to the child so the BackdropFilter
-      // wraps just the text's intrinsic width — blur stops where the glyphs
-      // do, not at the title slot's right edge. ClipRRect rounds the corners
-      // of the frosted strip.
+      // Static rendering goes through RainbowStrikethrough, which now
+      // hosts its own per-line PerLineBackdropBlur internally — so we
+      // don't add an outer ClipRRect / BackdropFilter on the
+      // non-editing branch. During inline edit, keep a single
+      // rectangular frosted wrapper around the TextField (per-line
+      // splitting is impractical while text wraps live as the user
+      // types). `BackdropFilter.grouped` shares the BackdropGroup
+      // snapshot HomePage sets up.
       title: Align(
         alignment: AlignmentDirectional.centerStart,
-        child: ClipRRect(
-          borderRadius: BorderRadius.circular(8),
-          child: BackdropFilter(
-            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-            child: _editing
-                ? TextField(
+        child: _editing
+            ? ClipRRect(
+                borderRadius: BorderRadius.circular(8),
+                child: BackdropFilter.grouped(
+                  filter: ImageFilter.blur(
+                    sigmaX: 10,
+                    sigmaY: 10,
+                    tileMode: TileMode.decal,
+                  ),
+                  child: TextField(
                     controller: _controller,
                     focusNode: _focusNode,
                     style: baseStyle,
@@ -171,15 +180,15 @@ class _TodoTileState extends ConsumerState<TodoTile>
                       contentPadding: EdgeInsets.zero,
                       border: InputBorder.none,
                     ),
-                  )
-                : RainbowStrikethrough(
-                    text: widget.item.text,
-                    baseStyle: baseStyle,
-                    mutedColor: mutedColor,
-                    progress: _checkCtrl,
                   ),
-          ),
-        ),
+                ),
+              )
+            : RainbowStrikethrough(
+                text: widget.item.text,
+                baseStyle: baseStyle,
+                mutedColor: mutedColor,
+                progress: _checkCtrl,
+              ),
       ),
       onTap: _editing ? null : _startEdit,
       onLongPress: _editing ? null : _showItemMenu,

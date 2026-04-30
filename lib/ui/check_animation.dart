@@ -4,6 +4,7 @@ import 'dart:ui' show lerpDouble;
 import 'package:flutter/material.dart';
 
 import 'glitter_colors.dart';
+import 'per_line_backdrop_blur.dart';
 
 const _rainbow = <Color>[
   Color(0xFFFF3B30),
@@ -47,13 +48,24 @@ class RainbowStrikethrough extends StatelessWidget {
         final textColor =
             Color.lerp(resolved.color, mutedColor, t) ?? resolved.color;
         final styled = resolved.copyWith(color: textColor);
+        // Per-line frosted blur sits inside the CustomPaint as the
+        // child. PerLineBackdropBlur sizes to the same `tp.size` a plain
+        // Text(text, style: styled) would produce, so the foreground
+        // painter's own TextPainter computes matching line metrics off
+        // the same (text, style, maxWidth) and the rainbow strikes still
+        // align to baselines. `grouped: true` requires the ancestor
+        // BackdropGroup that HomePage wraps around the PageView.
         return CustomPaint(
           foregroundPainter: _StrikethroughPainter(
             progress: t,
             text: text,
             style: styled,
           ),
-          child: Text(text, style: styled),
+          child: PerLineBackdropBlur(
+            text: text,
+            style: styled,
+            grouped: true,
+          ),
         );
       },
     );
