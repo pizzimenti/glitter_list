@@ -14,22 +14,21 @@ import 'package:flutter/material.dart';
 class GlitterShadows {
   const GlitterShadows._();
 
-  // 8 stacked shadows of sigma = 140 px, each at 50% surface alpha.
-  // Half-again more shadows (5 → 8) and a small alpha bump (0.4 → 0.5)
-  // vs. the prior cut so the cloud reads as a real shadowy halo again
-  // — keeping the wide reach (σ=140) but pushing cumulative alpha well
-  // back up toward "obvious" without going all the way to opaque.
+  // 10 stacked shadows of sigma = 140 px, each at 60% surface alpha.
+  // Bumps both count (8 → 10) and per-shadow alpha (0.5 → 0.6) for a
+  // denser, more obviously shadowy cloud while keeping the wide reach
+  // (σ stays at 140 px).
   //
-  //     d (px) | per-shadow → cumulative over 8
-  //     -------|-------------------------------
-  //        0   |  ~0.25  →  ~90%
-  //       20   |  ~0.22  →  ~86%
-  //       50   |  ~0.18  →  ~80%
-  //      100   |  ~0.12  →  ~64%
-  //      150   |  ~0.07  →  ~45%
-  //      200   |  ~0.04  →  ~27%
+  //     d (px) | per-shadow → cumulative over 10
+  //     -------|--------------------------------
+  //        0   |  ~0.30  →  ~97%
+  //       20   |  ~0.27  →  ~95%
+  //       50   |  ~0.22  →  ~91%
+  //      100   |  ~0.14  →  ~78%
+  //      150   |  ~0.09  →  ~59%
+  //      200   |  ~0.05  →  ~37%
   static List<Shadow> aroundText(Color surface) => List.filled(
-        8,
-        Shadow(color: surface.withValues(alpha: 0.5), blurRadius: 140),
+        10,
+        Shadow(color: surface.withValues(alpha: 0.6), blurRadius: 140),
       );
 }
