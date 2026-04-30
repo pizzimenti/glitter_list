@@ -3,6 +3,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/todo_list.dart';
 import '../state/app_state.dart';
+import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'todo_tile.dart';
 
@@ -44,6 +45,13 @@ class _ListPageState extends ConsumerState<ListPage> {
       );
     }
     final notifier = ref.read(appStateProvider.notifier);
+    // Capture the parallax scope here so the proxyDecorator below can
+    // re-publish it inside the OverlayEntry that ReorderableListView
+    // uses to host the dragged-tile proxy. The Overlay sits above
+    // BgParallaxScope (which lives inside HomePage), so without this
+    // re-wrap the dragged tile's per-line strips fall back to
+    // Alignment.center and stop repainting until the gesture ends.
+    final parallax = BgParallaxScope.maybeOf(context);
     return SafeArea(
       top: false, // AppBar already handles the top inset.
       child: Stack(
@@ -56,6 +64,12 @@ class _ListPageState extends ConsumerState<ListPage> {
             itemCount: widget.list.items.length,
             onReorder: (oldIndex, newIndex) =>
                 notifier.reorderItem(widget.list.id, oldIndex, newIndex),
+            proxyDecorator: parallax == null
+                ? null
+                : (child, index, animation) => BgParallaxScope(
+                      parallax: parallax,
+                      child: child,
+                    ),
             itemBuilder: (ctx, i) {
               final item = widget.list.items[i];
               return TodoTile(

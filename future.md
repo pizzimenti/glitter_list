@@ -40,4 +40,26 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
+# Hoist `BgParallaxScope` above `MaterialApp`
+
+- **Status:** Candidate
+- **Priority:** Low
+- **Why:** Today `BgParallaxScope` is built inside `_HomePageState.build`, so it sits below `MaterialApp`'s `Navigator` / root `Overlay`. Anything that reparents into the root overlay (modal dialogs, popup-menu surfaces, drag-reorder proxies) loses access to the scope and falls back to `Alignment.center` for any per-line frosted strip rendered there. We band-aided the drag-reorder case with `proxyDecorator` re-publishing the scope; modal route content currently shows opaque chrome from `ColorScheme.surface`, so the scope absence isn't *visibly* wrong there yet, but any future widget that wants to show frosted strips inside an overlay would hit the same corner.
+- **Scope:** Lift the scope into a small `StatefulWidget` wrapper around `GlitterListApp` (or above `MaterialApp` inside it) and pass `_bgListenable` + `Alignment` down via an `InheritedNotifier` keyed on the existing `Listenable.merge`. Move the parallax-state plumbing (`PageController`, `_verticalT`) into the wrapper too, or thread them up.
+- **Risk / cost:** ~half day. Touches the bootstrap path; needs care so existing `ProviderScope` overrides (test fakes) still apply.
+- **Depends on:** Nothing.
+
+---
+
+# True wide-gamut / HDR for the bg image
+
+- **Status:** Parked — Flutter image pipeline limit
+- **Priority:** Low
+- **Why:** Saturation matrix on `DecorationImage.colorFilter` is the closest "HDR pop" we can do today in sRGB. Real wide-gamut paths in Flutter (Display P3 colors, HDR10/AVIF source) work for code-defined colors on iOS Impeller but are still patchy for image assets, especially on Android.
+- **Scope:** Convert bg PNGs to wide-gamut-tagged AVIF or HEIC; load via `ImageProvider` with explicit color space; verify iOS-Impeller, Android-Impeller, Skia fallback. Also write a `FragmentProgram` blur shader if we want full bake-free real-time blur.
+- **Risk / cost:** Days, with platform-specific landmines. Defer until Flutter's wide-gamut image story is documented and stable.
+- **Depends on:** Flutter / Impeller maturing on this front.
+
+---
+
 <!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->

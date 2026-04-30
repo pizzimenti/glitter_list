@@ -44,6 +44,7 @@ class PerLineBackdropBlur extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     final brightness = MediaQuery.platformBrightnessOf(context);
     final viewportSize = MediaQuery.sizeOf(context);
+    final textScaler = MediaQuery.textScalerOf(context);
     final bakedAsync = ref.watch(
       bakedBgProvider(
         BakedBgKey(brightness: brightness, size: viewportSize),
@@ -56,9 +57,17 @@ class PerLineBackdropBlur extends ConsumerWidget {
         final layoutMaxWidth =
             softWrap ? constraints.maxWidth : double.infinity;
 
+        // Pass textScaler so per-line metrics match what the rendered
+        // Text widgets will lay out at — they inherit the ambient
+        // textScaler from MediaQuery, so without this our outer
+        // SizedBox + per-line Positioned strips would be sized to
+        // unscaled metrics while the glyphs render larger under
+        // accessibility scaling, clipping the bottom and missing the
+        // right edge.
         final tp = TextPainter(
           text: TextSpan(text: text, style: style),
           textDirection: TextDirection.ltr,
+          textScaler: textScaler,
           maxLines: maxLines,
           ellipsis: useEllipsis ? '…' : null,
         )..layout(maxWidth: layoutMaxWidth);

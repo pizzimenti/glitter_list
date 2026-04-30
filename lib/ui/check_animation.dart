@@ -41,6 +41,7 @@ class RainbowStrikethrough extends StatelessWidget {
     // Otherwise the painter falls back to the platform default font and
     // its lines/baselines diverge from what the Text actually draws.
     final resolved = DefaultTextStyle.of(context).style.merge(baseStyle);
+    final textScaler = MediaQuery.textScalerOf(context);
     return AnimatedBuilder(
       animation: progress,
       builder: (_, _) {
@@ -52,16 +53,17 @@ class RainbowStrikethrough extends StatelessWidget {
         // child. PerLineBackdropBlur sizes to the same `tp.size` a plain
         // Text(text, style: styled) would produce, so the foreground
         // painter's own TextPainter computes matching line metrics off
-        // the same (text, style, maxWidth) and the rainbow strikes still
-        // align to baselines. The strips themselves now sample a pre-
-        // baked, pre-blurred bg image (sliced via canvas.drawImageRect)
-        // rather than running a live BackdropFilter, so vertical scroll
-        // doesn't tear them anymore.
+        // the same (text, style, maxWidth, textScaler) and the rainbow
+        // strikes still align to baselines. The strips themselves now
+        // sample a pre-baked, pre-blurred bg image (sliced via
+        // canvas.drawImageRect) rather than running a live
+        // BackdropFilter, so vertical scroll doesn't tear them anymore.
         return CustomPaint(
           foregroundPainter: _StrikethroughPainter(
             progress: t,
             text: text,
             style: styled,
+            textScaler: textScaler,
           ),
           child: PerLineBackdropBlur(
             text: text,
@@ -78,11 +80,13 @@ class _StrikethroughPainter extends CustomPainter {
     required this.progress,
     required this.text,
     required this.style,
+    required this.textScaler,
   });
 
   final double progress;
   final String text;
   final TextStyle style;
+  final TextScaler textScaler;
 
   @override
   void paint(Canvas canvas, Size size) {
@@ -90,6 +94,7 @@ class _StrikethroughPainter extends CustomPainter {
     final tp = TextPainter(
       text: TextSpan(text: text, style: style),
       textDirection: TextDirection.ltr,
+      textScaler: textScaler,
       maxLines: null,
     )..layout(maxWidth: size.width);
 
@@ -148,7 +153,10 @@ class _StrikethroughPainter extends CustomPainter {
 
   @override
   bool shouldRepaint(_StrikethroughPainter old) =>
-      old.progress != progress || old.text != text || old.style != style;
+      old.progress != progress ||
+      old.text != text ||
+      old.style != style ||
+      old.textScaler != textScaler;
 }
 
 /// Wraps a [Checkbox] and paints a bell-curved glow around it during the

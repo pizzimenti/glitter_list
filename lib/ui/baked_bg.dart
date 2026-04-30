@@ -185,12 +185,20 @@ String _assetFor(Brightness b) =>
 
 final bakedBgProvider =
     FutureProvider.autoDispose.family<BakedBg, BakedBgKey>((ref, key) async {
-  final baked = await _bake(
+  // Register dispose BEFORE awaiting. If the provider's autoDispose
+  // fires while `_bake` is still in flight (theme flip / rotation /
+  // keyboard show changing the BakedBgKey), Riverpod doesn't cancel
+  // the pending Future — `_bake` resolves later and would orphan the
+  // ui.Image's GPU memory if we registered the disposer afterwards.
+  // The holder closes over the eventual result so the same callback
+  // works whether dispose fires before or after the bake settles.
+  BakedBg? baked;
+  ref.onDispose(() => baked?.dispose());
+  baked = await _bake(
     bundle: rootBundle,
     assetPath: _assetFor(key.brightness),
     viewportSize: key.size,
   );
-  ref.onDispose(baked.dispose);
   return baked;
 });
 
