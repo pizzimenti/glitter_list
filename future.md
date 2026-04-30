@@ -17,17 +17,6 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Migrate to Riverpod 3 (with codegen)
-
-- **Status:** Candidate
-- **Priority:** Medium
-- **Why:** Scaffold pulled `flutter_riverpod ^2.5.1` by inertia; Riverpod 3 + `@riverpod` codegen is the modern idiom and cuts boilerplate. Cheaper now than later, while the provider surface is small.
-- **Scope:** Single `StateNotifierProvider` (`appStateProvider`), one notifier, a handful of consumer sites, one `ProviderScope` override, one test. No async providers, families, or `.select` in play.
-- **Risk / cost:** ~1–3 hours. Main shift: the seeded-repo `ProviderScope.overrideWith` becomes a separate overridable dependency provider, since codegen providers don't take a build-arg override the same way.
-- **Depends on:** Nothing.
-
----
-
 # Tilt-driven parallax (iOS 7 lineage)
 
 - **Status:** Candidate
