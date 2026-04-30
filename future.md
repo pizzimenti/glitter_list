@@ -63,7 +63,7 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 ---
 
 <!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
-# Export / backup mechanism
+# Data persistence / Export / backup mechanism
 
 - **Status:** Candidate
 - **Priority:** Medium
