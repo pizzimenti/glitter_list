@@ -1,25 +1,28 @@
-import 'dart:ui' show ImageFilter, LineMetrics, TileMode;
-
 import 'package:flutter/widgets.dart';
+import 'package:flutter_riverpod/flutter_riverpod.dart';
+
+import 'baked_bg.dart';
+import 'pre_baked_backdrop.dart';
 
 /// Renders [text] with a Gaussian-blur frosted strip behind **each
 /// individual line**, tight to that line's actual content width — empty
 /// space at the end of a wrapped line is left raw, not frosted.
 ///
-/// Internally lays out a `TextPainter` once at the available constraint
-/// width, pulls per-line metrics, and emits a `Stack` of `Positioned`
-/// `ClipRRect → BackdropFilter → Text` strips, one per line. The
-/// outer size matches `tp.size`, so callers that wrap this in a
-/// `CustomPaint` (notably `RainbowStrikethrough`) get the same paint
-/// surface they'd have gotten from a plain `Text` widget — the
-/// strikethrough painter's own `TextPainter` will compute matching
-/// line metrics off the same `(text, style, maxWidth)`.
+/// Lays out a `TextPainter` once at the available constraint, pulls per-
+/// line metrics, and emits a `Stack` of `Positioned` `ClipRRect →
+/// PreBakedBackdrop → Text` strips, one per line. The outer size matches
+/// `tp.size`, so callers that wrap this in a `CustomPaint` (notably
+/// `RainbowStrikethrough`) get the same paint surface they'd have gotten
+/// from a plain `Text` widget — the strikethrough painter's own
+/// `TextPainter` will compute matching line metrics off the same
+/// `(text, style, maxWidth)`.
 ///
-/// Set [grouped] when an ancestor `BackdropGroup` is present — N
-/// grouped filters share one backdrop snapshot per frame, which is
-/// what eliminates the vertical-scroll re-rasterization tearing the
-/// plain `BackdropFilter` shows inside scrollables.
-class PerLineBackdropBlur extends StatelessWidget {
+/// Each strip's "blur" is a slice of a single pre-baked, pre-blurred
+/// `ui.Image` of the bg ([BakedBg]) sampled at the strip's current
+/// screen position via `canvas.drawImageRect` — no live `BackdropFilter`,
+/// so the engine re-rasterization race that produced vertical-scroll
+/// tearing on grouped filters can't fire here.
+class PerLineBackdropBlur extends ConsumerWidget {
   const PerLineBackdropBlur({
     super.key,
     required this.text,
@@ -27,9 +30,7 @@ class PerLineBackdropBlur extends StatelessWidget {
     this.maxLines,
     this.softWrap = true,
     this.overflow = TextOverflow.clip,
-    this.sigma = 10,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
-    this.grouped = false,
   });
 
   final String text;
@@ -37,17 +38,18 @@ class PerLineBackdropBlur extends StatelessWidget {
   final int? maxLines;
   final bool softWrap;
   final TextOverflow overflow;
-  final double sigma;
   final BorderRadius borderRadius;
 
-  /// When true, emits `BackdropFilter.grouped` so the per-line filters
-  /// share one backdrop snapshot via an ancestor `BackdropGroup`. When
-  /// false, emits plain `BackdropFilter` — for non-scrollable contexts
-  /// like the AppBar where there's no group to join.
-  final bool grouped;
-
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final viewportSize = MediaQuery.sizeOf(context);
+    final bakedAsync = ref.watch(
+      bakedBgProvider(
+        BakedBgKey(brightness: brightness, size: viewportSize),
+      ),
+    );
+
     return LayoutBuilder(
       builder: (context, constraints) {
         final useEllipsis = overflow == TextOverflow.ellipsis;
@@ -84,11 +86,7 @@ class PerLineBackdropBlur extends StatelessWidget {
         }
         tp.dispose();
 
-        final filter = ImageFilter.blur(
-          sigmaX: sigma,
-          sigmaY: sigma,
-          tileMode: TileMode.decal,
-        );
+        final baked = bakedAsync.valueOrNull;
 
         return SizedBox(
           width: size.width,
@@ -103,15 +101,16 @@ class PerLineBackdropBlur extends StatelessWidget {
                   height: line.metrics.height,
                   child: ClipRRect(
                     borderRadius: borderRadius,
-                    child: grouped
-                        ? BackdropFilter.grouped(
-                            filter: filter,
-                            child: _lineWidget(line.text),
-                          )
-                        : BackdropFilter(
-                            filter: filter,
-                            child: _lineWidget(line.text),
-                          ),
+                    child: Stack(
+                      fit: StackFit.expand,
+                      children: [
+                        // Baked-bg slice. Until the bake resolves, the
+                        // strip just leaves the live bg showing through.
+                        if (baked != null) PreBakedBackdrop(baked: baked),
+                        // The line itself, drawn on top of the slice.
+                        _lineWidget(line.text),
+                      ],
+                    ),
                   ),
                 ),
             ],

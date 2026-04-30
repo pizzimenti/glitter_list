@@ -1,5 +1,3 @@
-import 'dart:ui' show ImageFilter, TileMode;
-
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -149,38 +147,27 @@ class _TodoTileState extends ConsumerState<TodoTile>
         ),
       ),
       // Align hands a loose constraint to the child so the BackdropFilter
-      // Static rendering goes through RainbowStrikethrough, which now
-      // hosts its own per-line PerLineBackdropBlur internally — so we
-      // don't add an outer ClipRRect / BackdropFilter on the
-      // non-editing branch. During inline edit, keep a single
-      // rectangular frosted wrapper around the TextField (per-line
-      // splitting is impractical while text wraps live as the user
-      // types). `BackdropFilter.grouped` shares the BackdropGroup
-      // snapshot HomePage sets up.
+      // Static rendering goes through RainbowStrikethrough, which hosts
+      // its own per-line PerLineBackdropBlur internally — strips sample
+      // a pre-baked, pre-blurred bg image (no live BackdropFilter, no
+      // engine race during scroll). Inline-edit drops the blur entirely
+      // for now: text wraps live as the user types, per-line splitting
+      // doesn't work mid-typing, and a blur for the brief editing window
+      // isn't worth the complexity.
       title: Align(
         alignment: AlignmentDirectional.centerStart,
         child: _editing
-            ? ClipRRect(
-                borderRadius: BorderRadius.circular(8),
-                child: BackdropFilter.grouped(
-                  filter: ImageFilter.blur(
-                    sigmaX: 10,
-                    sigmaY: 10,
-                    tileMode: TileMode.decal,
-                  ),
-                  child: TextField(
-                    controller: _controller,
-                    focusNode: _focusNode,
-                    style: baseStyle,
-                    cursorColor: glitter.content,
-                    onSubmitted: (_) => _commit(),
-                    onTapOutside: (_) => _commit(),
-                    decoration: const InputDecoration(
-                      isDense: true,
-                      contentPadding: EdgeInsets.zero,
-                      border: InputBorder.none,
-                    ),
-                  ),
+            ? TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                style: baseStyle,
+                cursorColor: glitter.content,
+                onSubmitted: (_) => _commit(),
+                onTapOutside: (_) => _commit(),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
                 ),
               )
             : RainbowStrikethrough(

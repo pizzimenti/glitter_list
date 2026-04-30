@@ -53,8 +53,10 @@ class RainbowStrikethrough extends StatelessWidget {
         // Text(text, style: styled) would produce, so the foreground
         // painter's own TextPainter computes matching line metrics off
         // the same (text, style, maxWidth) and the rainbow strikes still
-        // align to baselines. `grouped: true` requires the ancestor
-        // BackdropGroup that HomePage wraps around the PageView.
+        // align to baselines. The strips themselves now sample a pre-
+        // baked, pre-blurred bg image (sliced via canvas.drawImageRect)
+        // rather than running a live BackdropFilter, so vertical scroll
+        // doesn't tear them anymore.
         return CustomPaint(
           foregroundPainter: _StrikethroughPainter(
             progress: t,
@@ -64,7 +66,6 @@ class RainbowStrikethrough extends StatelessWidget {
           child: PerLineBackdropBlur(
             text: text,
             style: styled,
-            grouped: true,
           ),
         );
       },

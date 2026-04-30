@@ -21,18 +21,11 @@ class _HomePageState extends ConsumerState<HomePage> {
   // Background's vertical pan, mapped from the active list's scroll
   // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
   // glitter pans down as the list scrolls down. Starts at -1 (top of
-  // image, matching an unscrolled list).
-  //
-  // The value is **only committed on ScrollEndNotification**, not on
-  // every ScrollUpdateNotification. While the user is actively
-  // scrolling we keep the latest target in `_pendingVerticalT` and
-  // hold the bg layer static, so the per-tile BackdropFilter samples
-  // a stable backdrop for the duration of the gesture and the engine
-  // re-rasterization race that produces vertical-scroll tearing
-  // (Flutter #138615 / #141510) doesn't fire. Bg snaps to its
-  // parallax-correct position the instant the scroll settles.
+  // image, matching an unscrolled list). Per-line frosted strips no
+  // longer source from a live BackdropFilter (they sample a pre-baked
+  // ui.Image) so we can update this on every ScrollUpdateNotification
+  // without re-introducing the engine's vertical-scroll tearing race.
   final ValueNotifier<double> _verticalT = ValueNotifier(-1);
-  double _pendingVerticalT = -1;
   late final Listenable _bgListenable;
 
   @override
@@ -244,14 +237,8 @@ class _HomePageState extends ConsumerState<HomePage> {
         ),
         body: state.lists.isEmpty
             ? const Center(child: Text('No lists'))
-            // BackdropGroup so all per-line BackdropFilter.grouped strips
-            // inside the PageView share one backdrop snapshot per frame —
-            // eliminates the vertical-scroll re-rasterization tearing the
-            // ungrouped pattern hits inside scrollables (Flutter
-            // #104769, #138615, #141510, #161262).
-            : BackdropGroup(
-                child: NotificationListener<ScrollNotification>(
-                  onNotification: (n) {
+            : NotificationListener<ScrollNotification>(
+                onNotification: (n) {
                   // Vertical scrolls bubble up from the inner ReorderableListView;
                   // PageView's own horizontal scrolls bubble up too and are ignored.
                   if (n.metrics.axis != Axis.vertical) return false;
@@ -277,14 +264,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                   final t = denom > 0
                       ? (-1 + 2 * n.metrics.pixels / denom).clamp(-1.0, 1.0)
                       : -1.0;
-                  // Buffer the target during active scroll so the bg
-                  // layer stays static (BackdropFilter snapshots remain
-                  // stable). Commit on scroll end only.
-                  _pendingVerticalT = t;
-                  if (n is ScrollEndNotification &&
-                      _verticalT.value != _pendingVerticalT) {
-                    _verticalT.value = _pendingVerticalT;
-                  }
+                  if (_verticalT.value != t) _verticalT.value = t;
                   return false;
                 },
                 child: PageView.builder(
@@ -293,12 +273,10 @@ class _HomePageState extends ConsumerState<HomePage> {
                   onPageChanged: (i) {
                     // New list comes in at scroll offset 0 → bg back to top.
                     _verticalT.value = -1;
-                    _pendingVerticalT = -1;
                     notifier.switchList(i);
                   },
                   itemBuilder: (_, i) => ListPage(list: state.lists[i]),
                 ),
-              ),
               ),
         floatingActionButton: currentList == null
             ? null
