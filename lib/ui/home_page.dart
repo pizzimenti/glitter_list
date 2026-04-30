@@ -67,8 +67,11 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
-      // Per-glyph diffusion cloud — see GlitterShadows for the math.
-      shadows: GlitterShadows.aroundText(Theme.of(context).colorScheme.surface),
+      // Glow halo in the same color as the text — see GlitterShadows.
+      // Using the text color (instead of the bg surface color) so the
+      // AA edges of the glyph blend with the matching halo and stay
+      // crisp at full saturation.
+      shadows: GlitterShadows.aroundText(context.glitter.content),
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side

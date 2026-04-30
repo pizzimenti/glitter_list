@@ -113,11 +113,15 @@ class _TodoTileState extends ConsumerState<TodoTile>
     final glitter = context.glitter;
     final scheme = Theme.of(context).colorScheme;
     final mutedColor = scheme.onSurface.withValues(alpha: 0.5);
-    // Per-glyph diffusion cloud — see GlitterShadows for the math.
+    // Glow halo in the same color as the text — see GlitterShadows.
+    // Using the text color (instead of the bg surface color) keeps the
+    // glyph's AA edges crisp at full saturation: edges blend dark-with-
+    // dark in light mode (was dark-with-light → washed-out lavender)
+    // and light-with-light in dark mode.
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
-      shadows: GlitterShadows.aroundText(scheme.surface),
+      shadows: GlitterShadows.aroundText(glitter.content),
     );
 
     return ListTile(
