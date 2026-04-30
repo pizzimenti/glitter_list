@@ -40,14 +40,20 @@ Future<void> main() async {
   await repo.init();
 
   var lists = repo.load();
+  final seeded = repo.hasSeeded();
   // Gate on a one-shot Hive flag, NOT on `lists.isEmpty` — otherwise a
-  // user who deletes every list via the popup menu has the seed content
-  // resurrected on next cold launch (their `[]` looks identical to a
-  // never-written box). The flag is set the first time we seed and
-  // never unset.
-  if (lists.isEmpty && !repo.hasSeeded()) {
-    lists = _seedLists();
-    await repo.save(lists);
+  // user who deletes every list via the popup menu has the seed
+  // content resurrected on next cold launch (their `[]` looks
+  // identical to a never-written box). The flag is set the first time
+  // we seed and never unset. Backfill the flag for upgraded installs
+  // that already have data — they pre-date the seeded marker, and
+  // without backfill they'd hit the "deleted everything → resurrect
+  // seed" trap the first time they empty their list collection.
+  if (!seeded) {
+    if (lists.isEmpty) {
+      lists = _seedLists();
+      await repo.save(lists);
+    }
     await repo.markSeeded();
   }
 

@@ -284,7 +284,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                     _verticalT.value = -1;
                     notifier.switchList(i);
                   },
-                  itemBuilder: (_, i) => ListPage(list: state.lists[i]),
+                  itemBuilder: (_, i) {
+                    final list = state.lists[i];
+                    // Key by the list's stable id so PageView preserves
+                    // the right ListPage state across mutations. Without
+                    // this, deleting/reordering lists can cause a new
+                    // page to inherit the previous occupant's
+                    // ScrollController / scroll-indicator state because
+                    // PageView.builder reuses State by index, not
+                    // identity.
+                    return ListPage(key: ValueKey(list.id), list: list);
+                  },
                 ),
               ),
         floatingActionButton: currentList == null

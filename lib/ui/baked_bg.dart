@@ -93,8 +93,16 @@ Future<BakedBg> _bake({
   final byteData = await bundle.load(assetPath);
   final codec =
       await ui.instantiateImageCodec(byteData.buffer.asUint8List());
-  final frame = await codec.getNextFrame();
-  final source = frame.image;
+  final ui.Image source;
+  try {
+    final frame = await codec.getNextFrame();
+    source = frame.image;
+  } finally {
+    // Native decoder resources accumulate across re-bakes (theme flip,
+    // rotation, viewport resize) if we don't dispose the codec — only
+    // one frame per bake, no further use after this point.
+    codec.dispose();
+  }
 
   try {
     // Cover-fit src rect on the source image so the bake's aspect
@@ -192,8 +200,24 @@ final bakedBgProvider =
   // ui.Image's GPU memory if we registered the disposer afterwards.
   // The holder closes over the eventual result so the same callback
   // works whether dispose fires before or after the bake settles.
+  //
+  // Defer the actual `image.dispose()` to a post-frame callback. When
+  // the brightness/viewport key changes, the new `BakedBg` lands in
+  // every PerLineBackdropBlur via `ref.watch` in the same frame's
+  // build phase, but the engine may still hold a paint job that
+  // references the OLD `ui.Image` (e.g. a deferred raster from before
+  // the rebuild). Synchronous disposal mid-frame can race that and
+  // raise "Image has been disposed" in paint. Deferring by one frame
+  // gives every active render object a chance to pick up the new
+  // image before the old one's native handle is freed.
   BakedBg? baked;
-  ref.onDispose(() => baked?.dispose());
+  ref.onDispose(() {
+    final pending = baked;
+    if (pending == null) return;
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      pending.dispose();
+    });
+  });
   baked = await _bake(
     bundle: rootBundle,
     assetPath: _assetFor(key.brightness),
