@@ -5,6 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
+import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 import 'per_line_backdrop_blur.dart';
@@ -111,6 +112,7 @@ class _HomePageState extends ConsumerState<HomePage> {
               : state.currentListIndex.toDouble();
           alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
         }
+        final alignment = Alignment(alignmentX, _verticalT.value);
         // Scale the bg image past `cover` so panning has slack on BOTH
         // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
         // — so horizontal pan has ~60% more travel than vertical (matches
@@ -119,38 +121,45 @@ class _HomePageState extends ConsumerState<HomePage> {
         // layer; the Scaffold sits on top, untouched.
         //
         // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
-        // for an HDR-like pop. There's no global scrim layer — diffusion
-        // is delivered per-glyph via TextStyle.shadows in `titleStyle` and
-        // TodoTile's `baseStyle`, so the bg only mutes within ~10 px of
-        // text and stays raw everywhere else.
-        return Stack(
-          fit: StackFit.expand,
-          children: [
-            ColoredBox(color: surface),
-            ClipRect(
-              child: Transform(
-                transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
-                alignment: Alignment(alignmentX, _verticalT.value),
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    image: DecorationImage(
-                      image: AssetImage(bgAsset),
-                      fit: BoxFit.cover,
-                      // Saturation matrix, s=1.3, Rec. 709 weights:
-                      // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
-                      colorFilter: const ColorFilter.matrix(<double>[
-                        1.23622, -0.21456, -0.02166, 0, 0,
-                        -0.06378, 1.08544, -0.02166, 0, 0,
-                        -0.06378, -0.21456, 1.27834, 0, 0,
-                        0, 0, 0, 1, 0,
-                      ]),
+        // for an HDR-like pop. The same parallax `alignment` and the
+        // merged `_bgListenable` are pushed into BgParallaxScope so each
+        // PreBakedBackdrop strip can sample the matching slice of the
+        // pre-baked, pre-blurred bg image and force-repaint per scroll
+        // frame.
+        return BgParallaxScope(
+          parallax: BgParallax(
+            listenable: _bgListenable,
+            alignment: alignment,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: surface),
+              ClipRect(
+                child: Transform(
+                  transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
+                  alignment: alignment,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(bgAsset),
+                        fit: BoxFit.cover,
+                        // Saturation matrix, s=1.3, Rec. 709 weights:
+                        // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          1.23622, -0.21456, -0.02166, 0, 0,
+                          -0.06378, 1.08544, -0.02166, 0, 0,
+                          -0.06378, -0.21456, 1.27834, 0, 0,
+                          0, 0, 0, 1, 0,
+                        ]),
+                      ),
                     ),
                   ),
                 ),
               ),
-            ),
-            ?child,
-          ],
+              ?child,
+            ],
+          ),
         );
       },
       child: Scaffold(
