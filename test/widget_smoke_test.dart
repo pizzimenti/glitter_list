@@ -38,16 +38,18 @@ TodoList _listWith({
 }
 
 /// Wrap [GlitterListApp] with a forced [Brightness] via MediaQuery so the
-/// test does not depend on the host's system theme. The notifier is
-/// constructed once and returned by the provider override, so re-pumps
-/// see the same state.
+/// test does not depend on the host's system theme. The repo + initial
+/// state are injected via the dep providers; Riverpod constructs the
+/// notifier once per ProviderScope.
 Widget _appWithBrightness({
   required Brightness brightness,
-  required AppStateNotifier notifier,
+  required HiveRepository repo,
+  required AppState initial,
 }) {
   return ProviderScope(
     overrides: [
-      appStateProvider.overrideWith((ref) => notifier),
+      hiveRepositoryProvider.overrideWithValue(repo),
+      initialAppStateProvider.overrideWithValue(initial),
     ],
     child: MediaQuery(
       data: MediaQueryData(platformBrightness: brightness),
@@ -123,10 +125,13 @@ void main() {
     for (final c in _sizeCases) {
       for (final brightness in Brightness.values) {
         testWidgets('${c.name} — ${brightness.name}', (tester) async {
-          final notifier = AppStateNotifier(_FakeRepo(), c.build());
           await _pumpAndAssertNoErrors(
             tester,
-            _appWithBrightness(brightness: brightness, notifier: notifier),
+            _appWithBrightness(
+              brightness: brightness,
+              repo: _FakeRepo(),
+              initial: c.build(),
+            ),
           );
         });
       }
@@ -141,10 +146,10 @@ void main() {
           lists: [_listWith(id: 'L1', name: 'Fifty', count: 50)],
           currentListIndex: 0,
         );
-        final notifier = AppStateNotifier(_FakeRepo(), state);
         await tester.pumpWidget(_appWithBrightness(
           brightness: Brightness.light,
-          notifier: notifier,
+          repo: _FakeRepo(),
+          initial: state,
         ));
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);

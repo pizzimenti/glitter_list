@@ -1,9 +1,11 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
+import 'package:riverpod_annotation/riverpod_annotation.dart';
 import 'package:uuid/uuid.dart';
 
 import '../models/todo_item.dart';
 import '../models/todo_list.dart';
 import '../storage/hive_repository.dart';
+
+part 'app_state.g.dart';
 
 class AppState {
   const AppState({required this.lists, required this.currentListIndex});
@@ -17,13 +19,27 @@ class AppState {
       );
 }
 
-class AppStateNotifier extends StateNotifier<AppState> {
-  AppStateNotifier(this._repo, AppState initial) : super(initial);
+// Injected dependencies. Both providers are placeholders that throw if used
+// without an override — main.dart and tests always supply overrides, so the
+// throw only fires as a loud signal when an override is forgotten.
+@Riverpod(keepAlive: true)
+HiveRepository hiveRepository(Ref ref) =>
+    throw UnimplementedError('Override hiveRepositoryProvider in ProviderScope');
 
-  final HiveRepository _repo;
-  final _uuid = Uuid();
+@Riverpod(keepAlive: true)
+AppState initialAppState(Ref ref) =>
+    throw UnimplementedError('Override initialAppStateProvider in ProviderScope');
+
+@Riverpod(keepAlive: true)
+class AppStateNotifier extends _$AppStateNotifier {
+  final _uuid = const Uuid();
+
+  HiveRepository get _repo => ref.read(hiveRepositoryProvider);
 
   Future<void> _persist() => _repo.save(state.lists);
+
+  @override
+  AppState build() => ref.watch(initialAppStateProvider);
 
   void switchList(int index) {
     if (index < 0 || index >= state.lists.length) return;
@@ -141,8 +157,3 @@ class AppStateNotifier extends StateNotifier<AppState> {
     await _persist();
   }
 }
-
-final appStateProvider =
-    StateNotifierProvider<AppStateNotifier, AppState>((ref) {
-  throw UnimplementedError('Override appStateProvider in ProviderScope');
-});

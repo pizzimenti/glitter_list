@@ -95,7 +95,7 @@ class PerLineBackdropBlur extends ConsumerWidget {
         }
         tp.dispose();
 
-        final baked = bakedAsync.valueOrNull;
+        final baked = bakedAsync.value;
 
         return SizedBox(
           width: size.width,

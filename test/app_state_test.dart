@@ -1,3 +1,4 @@
+import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitter_list/models/todo_item.dart';
 import 'package:glitter_list/models/todo_list.dart';
@@ -16,22 +17,30 @@ class _FakeRepo extends HiveRepository {
   }
 }
 
+({_FakeRepo repo, AppStateNotifier notifier}) _build(AppState initial) {
+  final repo = _FakeRepo();
+  final container = ProviderContainer(overrides: [
+    hiveRepositoryProvider.overrideWithValue(repo),
+    initialAppStateProvider.overrideWithValue(initial),
+  ]);
+  addTearDown(container.dispose);
+  return (repo: repo, notifier: container.read(appStateProvider.notifier));
+}
+
 void main() {
   group('AppStateNotifier.reorderItem', () {
     late _FakeRepo repo;
     late AppStateNotifier notifier;
 
     setUp(() {
-      repo = _FakeRepo();
       final list = TodoList(id: 'L1', name: 'List 1', items: [
         TodoItem(id: 'A', text: 'a'),
         TodoItem(id: 'B', text: 'b'),
         TodoItem(id: 'C', text: 'c'),
       ]);
-      notifier = AppStateNotifier(
-        repo,
-        AppState(lists: [list], currentListIndex: 0),
-      );
+      final built = _build(AppState(lists: [list], currentListIndex: 0));
+      repo = built.repo;
+      notifier = built.notifier;
     });
 
     List<String> currentIds() => notifier.state.lists
@@ -68,17 +77,14 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      notifier = AppStateNotifier(
-        _FakeRepo(),
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'a'),
-            TodoList(id: 'L2', name: 'b'),
-            TodoList(id: 'L3', name: 'c'),
-          ],
-          currentListIndex: 0,
-        ),
-      );
+      notifier = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'a'),
+          TodoList(id: 'L2', name: 'b'),
+          TodoList(id: 'L3', name: 'c'),
+        ],
+        currentListIndex: 0,
+      )).notifier;
     });
 
     test('updates currentListIndex for valid index', () {
@@ -107,17 +113,14 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      notifier = AppStateNotifier(
-        _FakeRepo(),
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'a'),
-            TodoList(id: 'L2', name: 'b'),
-            TodoList(id: 'L3', name: 'c'),
-          ],
-          currentListIndex: 2,
-        ),
-      );
+      notifier = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'a'),
+          TodoList(id: 'L2', name: 'b'),
+          TodoList(id: 'L3', name: 'c'),
+        ],
+        currentListIndex: 2,
+      )).notifier;
     });
 
     test('deleting a list before the current one decrements selection', () async {
@@ -158,23 +161,18 @@ void main() {
   });
 
   group('AppStateNotifier immutability', () {
-    late _FakeRepo repo;
     late AppStateNotifier notifier;
 
     setUp(() {
-      repo = _FakeRepo();
-      notifier = AppStateNotifier(
-        repo,
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'L1', items: [
-              TodoItem(id: 'A', text: 'a'),
-              TodoItem(id: 'B', text: 'b', done: true),
-            ]),
-          ],
-          currentListIndex: 0,
-        ),
-      );
+      notifier = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'L1', items: [
+            TodoItem(id: 'A', text: 'a'),
+            TodoItem(id: 'B', text: 'b', done: true),
+          ]),
+        ],
+        currentListIndex: 0,
+      )).notifier;
     });
 
     test('toggleItem does not mutate prior state snapshot', () async {
@@ -218,18 +216,16 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      repo = _FakeRepo();
-      notifier = AppStateNotifier(
-        repo,
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'L1', items: [
-              TodoItem(id: 'A', text: 'a'),
-            ]),
-          ],
-          currentListIndex: 0,
-        ),
-      );
+      final built = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'L1', items: [
+            TodoItem(id: 'A', text: 'a'),
+          ]),
+        ],
+        currentListIndex: 0,
+      ));
+      repo = built.repo;
+      notifier = built.notifier;
     });
 
     test('addItem to unknown list is a no-op (no throw, no persist)', () async {
@@ -279,21 +275,19 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      repo = _FakeRepo();
-      notifier = AppStateNotifier(
-        repo,
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'L1', items: [
-              TodoItem(id: 'A', text: 'a'),
-              TodoItem(id: 'B', text: 'b', done: true),
-              TodoItem(id: 'C', text: 'c', done: true),
-              TodoItem(id: 'D', text: 'd'),
-            ]),
-          ],
-          currentListIndex: 0,
-        ),
-      );
+      final built = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'L1', items: [
+            TodoItem(id: 'A', text: 'a'),
+            TodoItem(id: 'B', text: 'b', done: true),
+            TodoItem(id: 'C', text: 'c', done: true),
+            TodoItem(id: 'D', text: 'd'),
+          ]),
+        ],
+        currentListIndex: 0,
+      ));
+      repo = built.repo;
+      notifier = built.notifier;
     });
 
     test('removes only done items, preserves order of remaining', () async {
@@ -304,21 +298,20 @@ void main() {
     });
 
     test('no-op when nothing is done (and does not persist)', () async {
-      notifier = AppStateNotifier(
-        repo,
-        AppState(
-          lists: [
-            TodoList(id: 'L1', name: 'L1', items: [
-              TodoItem(id: 'A', text: 'a'),
-              TodoItem(id: 'B', text: 'b'),
-            ]),
-          ],
-          currentListIndex: 0,
-        ),
-      );
-      await notifier.clearCompleted('L1');
-      expect(notifier.state.lists[0].items.length, 2);
-      expect(repo.saveCalls, 0);
+      // Build a fresh container for this test — its own _FakeRepo so
+      // saveCalls assertion isn't polluted by the outer setUp's notifier.
+      final fresh = _build(AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'L1', items: [
+            TodoItem(id: 'A', text: 'a'),
+            TodoItem(id: 'B', text: 'b'),
+          ]),
+        ],
+        currentListIndex: 0,
+      ));
+      await fresh.notifier.clearCompleted('L1');
+      expect(fresh.notifier.state.lists[0].items.length, 2);
+      expect(fresh.repo.saveCalls, 0);
     });
 
     test('unknown listId is a no-op', () async {

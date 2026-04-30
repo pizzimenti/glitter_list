@@ -64,12 +64,31 @@ class _ListPageState extends ConsumerState<ListPage> {
             itemCount: widget.list.items.length,
             onReorder: (oldIndex, newIndex) =>
                 notifier.reorderItem(widget.list.id, oldIndex, newIndex),
-            proxyDecorator: parallax == null
-                ? null
-                : (child, index, animation) => BgParallaxScope(
-                      parallax: parallax,
-                      child: child,
-                    ),
+            // ReorderableListView's default proxyDecorator wraps the
+            // lifted tile in Material so ListTile's ink/ripple has an
+            // ancestor; passing a custom decorator replaces the default,
+            // so we have to re-establish Material here ourselves —
+            // otherwise dragging throws "No Material widget found"
+            // because the OverlayEntry that hosts the proxy sits above
+            // every Scaffold/Material in the tree.
+            proxyDecorator: (child, index, animation) {
+              final wrapped = parallax == null
+                  ? child
+                  : BgParallaxScope(parallax: parallax, child: child);
+              return AnimatedBuilder(
+                animation: animation,
+                builder: (context, c) {
+                  final t = Curves.easeInOut.transform(animation.value);
+                  return Material(
+                    elevation: 6 * t,
+                    color: Colors.transparent,
+                    shadowColor: Colors.transparent,
+                    child: c,
+                  );
+                },
+                child: wrapped,
+              );
+            },
             itemBuilder: (ctx, i) {
               final item = widget.list.items[i];
               return TodoTile(
