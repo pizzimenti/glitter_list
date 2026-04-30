@@ -110,8 +110,8 @@ class _TodoTileState extends ConsumerState<TodoTile>
   Widget build(BuildContext context) {
     final notifier = ref.read(appStateProvider.notifier);
     final glitter = context.glitter;
-    final mutedColor =
-        Theme.of(context).colorScheme.onSurface.withValues(alpha: 0.5);
+    final scheme = Theme.of(context).colorScheme;
+    final mutedColor = scheme.onSurface.withValues(alpha: 0.5);
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
@@ -146,26 +146,37 @@ class _TodoTileState extends ConsumerState<TodoTile>
           ],
         ),
       ),
-      title: _editing
-          ? TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              style: baseStyle,
-              cursorColor: glitter.content,
-              onSubmitted: (_) => _commit(),
-              onTapOutside: (_) => _commit(),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
+      // Align hands a loose constraint to the child so the BackdropFilter
+      // Static rendering goes through RainbowStrikethrough, which hosts
+      // its own per-line PerLineBackdropBlur internally — strips sample
+      // a pre-baked, pre-blurred bg image (no live BackdropFilter, no
+      // engine race during scroll). Inline-edit drops the blur entirely
+      // for now: text wraps live as the user types, per-line splitting
+      // doesn't work mid-typing, and a blur for the brief editing window
+      // isn't worth the complexity.
+      title: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: _editing
+            ? TextField(
+                controller: _controller,
+                focusNode: _focusNode,
+                style: baseStyle,
+                cursorColor: glitter.content,
+                onSubmitted: (_) => _commit(),
+                onTapOutside: (_) => _commit(),
+                decoration: const InputDecoration(
+                  isDense: true,
+                  contentPadding: EdgeInsets.zero,
+                  border: InputBorder.none,
+                ),
+              )
+            : RainbowStrikethrough(
+                text: widget.item.text,
+                baseStyle: baseStyle,
+                mutedColor: mutedColor,
+                progress: _checkCtrl,
               ),
-            )
-          : RainbowStrikethrough(
-              text: widget.item.text,
-              baseStyle: baseStyle,
-              mutedColor: mutedColor,
-              progress: _checkCtrl,
-            ),
+      ),
       onTap: _editing ? null : _startEdit,
       onLongPress: _editing ? null : _showItemMenu,
       trailing: ReorderableDragStartListener(

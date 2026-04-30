@@ -5,8 +5,10 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
+import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
+import 'per_line_backdrop_blur.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -17,6 +19,15 @@ class HomePage extends ConsumerStatefulWidget {
 
 class _HomePageState extends ConsumerState<HomePage> {
   late final PageController _controller;
+  // Background's vertical pan, mapped from the active list's scroll
+  // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
+  // glitter pans down as the list scrolls down. Starts at -1 (top of
+  // image, matching an unscrolled list). Per-line frosted strips no
+  // longer source from a live BackdropFilter (they sample a pre-baked
+  // ui.Image) so we can update this on every ScrollUpdateNotification
+  // without re-introducing the engine's vertical-scroll tearing race.
+  final ValueNotifier<double> _verticalT = ValueNotifier(-1);
+  late final Listenable _bgListenable;
 
   @override
   void initState() {
@@ -24,10 +35,12 @@ class _HomePageState extends ConsumerState<HomePage> {
     _controller = PageController(
       initialPage: ref.read(appStateProvider).currentListIndex,
     );
+    _bgListenable = Listenable.merge([_controller, _verticalT]);
   }
 
   @override
   void dispose() {
+    _verticalT.dispose();
     _controller.dispose();
     super.dispose();
   }
@@ -79,93 +92,218 @@ class _HomePageState extends ConsumerState<HomePage> {
     measured.dispose();
     final toolbarHeight = math.max(kToolbarHeight, measuredHeight + 24);
 
-    return Scaffold(
-      appBar: AppBar(
-        toolbarHeight: toolbarHeight,
-        title: Row(
-          crossAxisAlignment: CrossAxisAlignment.center,
-          children: [
-            Expanded(
-              child: Text(
-                titleText,
-                style: titleStyle,
-                maxLines: 3,
-                softWrap: true,
-                overflow: TextOverflow.ellipsis,
+    final theme = Theme.of(context);
+    final brightness = theme.brightness;
+    final bgAsset = brightness == Brightness.dark
+        ? 'assets/images/bg_dark.png'
+        : 'assets/images/bg_light.png';
+    final surface = theme.colorScheme.surface;
+
+    return AnimatedBuilder(
+      animation: _bgListenable,
+      builder: (context, child) {
+        final maxIndex = state.lists.length - 1;
+        double alignmentX = 0;
+        if (maxIndex > 0) {
+          // Before the controller has clients (first frame) `page` throws,
+          // so fall back to the initial index until the PageView attaches.
+          final page = _controller.hasClients
+              ? (_controller.page ?? state.currentListIndex.toDouble())
+              : state.currentListIndex.toDouble();
+          alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
+        }
+        final alignment = Alignment(alignmentX, _verticalT.value);
+        // Scale the bg image past `cover` so panning has slack on BOTH
+        // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
+        // — so horizontal pan has ~60% more travel than vertical (matches
+        // the requested motion ratio: bigger horizontal swing on swipe
+        // than vertical swing on scroll). The Transform wraps only the bg
+        // layer; the Scaffold sits on top, untouched.
+        //
+        // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
+        // for an HDR-like pop. The same parallax `alignment` and the
+        // merged `_bgListenable` are pushed into BgParallaxScope so each
+        // PreBakedBackdrop strip can sample the matching slice of the
+        // pre-baked, pre-blurred bg image and force-repaint per scroll
+        // frame.
+        return BgParallaxScope(
+          parallax: BgParallax(
+            listenable: _bgListenable,
+            alignment: alignment,
+          ),
+          child: Stack(
+            fit: StackFit.expand,
+            children: [
+              ColoredBox(color: surface),
+              ClipRect(
+                child: Transform(
+                  transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
+                  alignment: alignment,
+                  child: DecoratedBox(
+                    decoration: BoxDecoration(
+                      image: DecorationImage(
+                        image: AssetImage(bgAsset),
+                        fit: BoxFit.cover,
+                        // Saturation matrix, s=1.3, Rec. 709 weights:
+                        // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
+                        colorFilter: const ColorFilter.matrix(<double>[
+                          1.23622, -0.21456, -0.02166, 0, 0,
+                          -0.06378, 1.08544, -0.02166, 0, 0,
+                          -0.06378, -0.21456, 1.27834, 0, 0,
+                          0, 0, 0, 1, 0,
+                        ]),
+                      ),
+                    ),
+                  ),
+                ),
               ),
-            ),
-            _PageDots(count: state.lists.length, index: state.currentListIndex),
-          ],
-        ),
-        actions: [
-          PopupMenuButton<String>(
-            onSelected: (action) async {
-              switch (action) {
-                case 'new':
-                  await showModalBottomSheet(
-                    context: context,
-                    isScrollControlled: true,
-                    builder: (_) => const AddListSheet(),
-                  );
-                case 'rename':
-                  if (currentList != null) {
-                    await _promptRename(currentList.id, currentList.name);
-                  }
-                case 'clear':
-                  if (currentList != null) {
-                    final count =
-                        currentList.items.where((i) => i.done).length;
-                    await _confirmClearCompleted(currentList.id, count);
-                  }
-                case 'delete':
-                  if (currentList != null) {
-                    await _confirmDeleteList(currentList.id, currentList.name);
-                  }
-              }
-            },
-            itemBuilder: (_) => [
-              _MenuItem(
-                value: 'new',
-                icon: Icons.playlist_add,
-                label: 'New List',
-              ),
-              if (currentList != null)
-                _MenuItem(
-                  value: 'rename',
-                  icon: Icons.drive_file_rename_outline,
-                  label: 'Rename List',
-                ),
-              if (currentList != null &&
-                  currentList.items.any((i) => i.done))
-                _MenuItem(
-                  value: 'clear',
-                  icon: Icons.cleaning_services_outlined,
-                  label: 'Clear Completed',
-                ),
-              if (currentList != null)
-                _MenuItem(
-                  value: 'delete',
-                  icon: Icons.delete_outline,
-                  label: 'Delete List',
-                ),
+              ?child,
             ],
           ),
-        ],
+        );
+      },
+      child: Scaffold(
+        appBar: AppBar(
+          toolbarHeight: toolbarHeight,
+          title: Row(
+            crossAxisAlignment: CrossAxisAlignment.center,
+            children: [
+              Expanded(
+                // Align without widthFactor fills the Expanded slot but
+                // hands a loose constraint to PerLineBackdropBlur, which
+                // sizes itself to the laid-out text — per-line strips,
+                // tight to each line's content. AppBar isn't inside any
+                // scrollable so this stays ungrouped.
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: PerLineBackdropBlur(
+                    text: titleText,
+                    style: titleStyle,
+                    maxLines: 3,
+                    overflow: TextOverflow.ellipsis,
+                  ),
+                ),
+              ),
+              _PageDots(
+                  count: state.lists.length, index: state.currentListIndex),
+            ],
+          ),
+          actions: [
+            PopupMenuButton<String>(
+              onSelected: (action) async {
+                switch (action) {
+                  case 'new':
+                    await showModalBottomSheet(
+                      context: context,
+                      isScrollControlled: true,
+                      builder: (_) => const AddListSheet(),
+                    );
+                  case 'rename':
+                    if (currentList != null) {
+                      await _promptRename(currentList.id, currentList.name);
+                    }
+                  case 'clear':
+                    if (currentList != null) {
+                      final count =
+                          currentList.items.where((i) => i.done).length;
+                      await _confirmClearCompleted(currentList.id, count);
+                    }
+                  case 'delete':
+                    if (currentList != null) {
+                      await _confirmDeleteList(
+                          currentList.id, currentList.name);
+                    }
+                }
+              },
+              itemBuilder: (_) => [
+                _MenuItem(
+                  value: 'new',
+                  icon: Icons.playlist_add,
+                  label: 'New List',
+                ),
+                if (currentList != null)
+                  _MenuItem(
+                    value: 'rename',
+                    icon: Icons.drive_file_rename_outline,
+                    label: 'Rename List',
+                  ),
+                if (currentList != null &&
+                    currentList.items.any((i) => i.done))
+                  _MenuItem(
+                    value: 'clear',
+                    icon: Icons.cleaning_services_outlined,
+                    label: 'Clear Completed',
+                  ),
+                if (currentList != null)
+                  _MenuItem(
+                    value: 'delete',
+                    icon: Icons.delete_outline,
+                    label: 'Delete List',
+                  ),
+              ],
+            ),
+          ],
+        ),
+        body: state.lists.isEmpty
+            ? const Center(child: Text('No lists'))
+            : NotificationListener<ScrollNotification>(
+                onNotification: (n) {
+                  // Vertical scrolls bubble up from the inner ReorderableListView;
+                  // PageView's own horizontal scrolls bubble up too and are ignored.
+                  if (n.metrics.axis != Axis.vertical) return false;
+                  // Same nullability gotcha as _ScrollIndicator: ScrollMetrics
+                  // exposes pixels / viewportDimension / maxScrollExtent through
+                  // !-guarded getters, so we only read them once the underlying
+                  // position has finished its first layout.
+                  if (!n.metrics.hasContentDimensions ||
+                      !n.metrics.hasPixels ||
+                      !n.metrics.hasViewportDimension) {
+                    return false;
+                  }
+                  // Mapping: alignmentY = -1 + 2 * pixels / max(extent, 2*viewport).
+                  // For short scrollable lists the denominator is 2*viewport, so
+                  // bg moves at ~15% of text-scroll speed (matching the slow
+                  // parallax feel of the horizontal swipe). For very long lists
+                  // the denominator is the actual scroll extent, and bg pans the
+                  // full slack across the list — even slower per pixel.
+                  final viewport = n.metrics.viewportDimension;
+                  final extent = n.metrics.maxScrollExtent;
+                  final denom =
+                      extent > 2 * viewport ? extent : 2 * viewport;
+                  final t = denom > 0
+                      ? (-1 + 2 * n.metrics.pixels / denom).clamp(-1.0, 1.0)
+                      : -1.0;
+                  if (_verticalT.value != t) _verticalT.value = t;
+                  return false;
+                },
+                child: PageView.builder(
+                  controller: _controller,
+                  itemCount: state.lists.length,
+                  onPageChanged: (i) {
+                    // New list comes in at scroll offset 0 → bg back to top.
+                    _verticalT.value = -1;
+                    notifier.switchList(i);
+                  },
+                  itemBuilder: (_, i) {
+                    final list = state.lists[i];
+                    // Key by the list's stable id so PageView preserves
+                    // the right ListPage state across mutations. Without
+                    // this, deleting/reordering lists can cause a new
+                    // page to inherit the previous occupant's
+                    // ScrollController / scroll-indicator state because
+                    // PageView.builder reuses State by index, not
+                    // identity.
+                    return ListPage(key: ValueKey(list.id), list: list);
+                  },
+                ),
+              ),
+        floatingActionButton: currentList == null
+            ? null
+            : FloatingActionButton(
+                onPressed: () => _promptAddItem(currentList.id),
+                child: const Icon(Icons.add),
+              ),
       ),
-      body: state.lists.isEmpty
-          ? const Center(child: Text('No lists'))
-          : PageView.builder(
-              controller: _controller,
-              itemCount: state.lists.length,
-              onPageChanged: notifier.switchList,
-              itemBuilder: (_, i) => ListPage(list: state.lists[i]),
-            ),
-      floatingActionButton: currentList == null
-          ? null
-          : FloatingActionButton(
-              onPressed: () => _promptAddItem(currentList.id),
-              child: const Icon(Icons.add),
-            ),
     );
   }
 
