@@ -157,15 +157,23 @@ class _HomePageState extends ConsumerState<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: ClipRect(
-                  child: BackdropFilter(
-                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                    child: Text(
-                      titleText,
-                      style: titleStyle,
-                      maxLines: 3,
-                      softWrap: true,
-                      overflow: TextOverflow.ellipsis,
+                // Align without widthFactor fills the Expanded slot but
+                // hands a loose constraint to the child, so the BackdropFilter
+                // wraps just the Text's intrinsic width — blur stops where
+                // the glyphs do, not at the AppBar's right edge.
+                child: Align(
+                  alignment: AlignmentDirectional.centerStart,
+                  child: ClipRRect(
+                    borderRadius: BorderRadius.circular(8),
+                    child: BackdropFilter(
+                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                      child: Text(
+                        titleText,
+                        style: titleStyle,
+                        maxLines: 3,
+                        softWrap: true,
+                        overflow: TextOverflow.ellipsis,
+                      ),
                     ),
                   ),
                 ),

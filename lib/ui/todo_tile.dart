@@ -148,29 +148,37 @@ class _TodoTileState extends ConsumerState<TodoTile>
           ],
         ),
       ),
-      title: ClipRect(
-        child: BackdropFilter(
-          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-          child: _editing
-              ? TextField(
-                  controller: _controller,
-                  focusNode: _focusNode,
-                  style: baseStyle,
-                  cursorColor: glitter.content,
-                  onSubmitted: (_) => _commit(),
-                  onTapOutside: (_) => _commit(),
-                  decoration: const InputDecoration(
-                    isDense: true,
-                    contentPadding: EdgeInsets.zero,
-                    border: InputBorder.none,
+      // Align hands a loose constraint to the child so the BackdropFilter
+      // wraps just the text's intrinsic width — blur stops where the glyphs
+      // do, not at the title slot's right edge. ClipRRect rounds the corners
+      // of the frosted strip.
+      title: Align(
+        alignment: AlignmentDirectional.centerStart,
+        child: ClipRRect(
+          borderRadius: BorderRadius.circular(8),
+          child: BackdropFilter(
+            filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+            child: _editing
+                ? TextField(
+                    controller: _controller,
+                    focusNode: _focusNode,
+                    style: baseStyle,
+                    cursorColor: glitter.content,
+                    onSubmitted: (_) => _commit(),
+                    onTapOutside: (_) => _commit(),
+                    decoration: const InputDecoration(
+                      isDense: true,
+                      contentPadding: EdgeInsets.zero,
+                      border: InputBorder.none,
+                    ),
+                  )
+                : RainbowStrikethrough(
+                    text: widget.item.text,
+                    baseStyle: baseStyle,
+                    mutedColor: mutedColor,
+                    progress: _checkCtrl,
                   ),
-                )
-              : RainbowStrikethrough(
-                  text: widget.item.text,
-                  baseStyle: baseStyle,
-                  mutedColor: mutedColor,
-                  progress: _checkCtrl,
-                ),
+          ),
         ),
       ),
       onTap: _editing ? null : _startEdit,
