@@ -9,6 +9,7 @@ import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 import 'per_line_backdrop_blur.dart';
+import 'pre_baked_backdrop.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -484,17 +485,23 @@ class _MenuItemRow extends StatelessWidget {
   }
 }
 
-class _PageDots extends StatelessWidget {
+class _PageDots extends ConsumerWidget {
   const _PageDots({required this.count, required this.index});
 
   final int count;
   final int index;
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     if (count <= 1) return const SizedBox.shrink();
     final color = Theme.of(context).colorScheme.onSurface;
-    return Padding(
+    final brightness = MediaQuery.platformBrightnessOf(context);
+    final viewportSize = MediaQuery.sizeOf(context);
+    final baked = ref
+        .watch(bakedBgProvider(
+            BakedBgKey(brightness: brightness, size: viewportSize)))
+        .value;
+    final dots = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
         mainAxisAlignment: MainAxisAlignment.spaceEvenly,
@@ -512,6 +519,16 @@ class _PageDots extends StatelessWidget {
           );
         }),
       ),
+    );
+    if (baked == null) return dots;
+    return Stack(
+      fit: StackFit.passthrough,
+      children: [
+        Positioned.fill(
+          child: ClipRect(child: PreBakedBackdrop(baked: baked)),
+        ),
+        dots,
+      ],
     );
   }
 }

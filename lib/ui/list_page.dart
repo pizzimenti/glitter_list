@@ -39,7 +39,7 @@ class _ListPageState extends ConsumerState<ListPage> {
       final heroHeight = MediaQuery.sizeOf(context).height / 3;
       final emptyStyle = TextStyle(
         color: glitter.content,
-        fontSize: glitter.bodyFontSize * 2,
+        fontSize: glitter.bodyFontSize * 1.2,
         height: 1.2,
       );
       return SafeArea(
@@ -57,9 +57,13 @@ class _ListPageState extends ConsumerState<ListPage> {
                   fit: BoxFit.contain,
                 ),
                 const SizedBox(height: 24),
-                PerLineBackdropBlur(
-                  text: 'Empty list.\nTap + to add an item.',
-                  style: emptyStyle,
+                FittedBox(
+                  fit: BoxFit.scaleDown,
+                  child: PerLineBackdropBlur(
+                    text: 'Empty list.\nTap + to add an item.',
+                    style: emptyStyle,
+                    softWrap: false,
+                  ),
                 ),
               ],
             ),
