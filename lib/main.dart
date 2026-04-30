@@ -61,7 +61,8 @@ Future<void> main() async {
 
   runApp(ProviderScope(
     overrides: [
-      appStateProvider.overrideWith((ref) => AppStateNotifier(repo, initial)),
+      hiveRepositoryProvider.overrideWithValue(repo),
+      initialAppStateProvider.overrideWithValue(initial),
     ],
     child: const GlitterListApp(),
   ));

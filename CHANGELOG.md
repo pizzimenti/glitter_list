@@ -4,6 +4,13 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.3.0] - 2026-04-30
+
+### Changed
+
+- **Reorder-drag crash fix.** Dragging an item to reorder it inside a list raised `No Material widget found. ListTile widgets require a Material widget ancestor`. `ReorderableListView`'s default `proxyDecorator` wraps the lifted tile in a `Material` so `ListTile`'s ink/ripple machinery has an ancestor; the custom decorator added in 0.2.0 (to re-publish `BgParallaxScope` inside the drag overlay) replaced the default and dropped the Material wrap. The decorator now re-establishes `Material` itself with the same elevation animation as Flutter's default.
+- **Riverpod 3.3.1 migration with codegen.** `AppStateNotifier` moved off the legacy `StateNotifier` onto a class-based `@riverpod` notifier with codegen-emitted provider declarations (`lib/state/app_state.g.dart`). The seeded `HiveRepository` and initial `AppState` are now their own overridable providers (`hiveRepositoryProvider`, `initialAppStateProvider`) — replacing the prior pattern of threading them through the notifier's constructor. UI consumers (`home_page`, `list_page`, `todo_tile`, `add_list_sheet`) and Hive persistence are unchanged; `appStateProvider` keeps its existing name because the generator strips the `Notifier` suffix from the class. Tests now construct a `ProviderContainer` with the dep-provider overrides applied via a single `_build` helper; `_FakeRepo` is unchanged. Also fixed the Riverpod 3 removal of `AsyncValue.valueOrNull` in `per_line_backdrop_blur.dart`.
+
 ## [0.2.0] - 2026-04-29
 
 ### Changed
