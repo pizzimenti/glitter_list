@@ -1,10 +1,11 @@
+import 'dart:ui' show ImageFilter;
+
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/todo_item.dart';
 import '../state/app_state.dart';
 import 'check_animation.dart';
-import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 
 class TodoTile extends ConsumerStatefulWidget {
@@ -113,15 +114,9 @@ class _TodoTileState extends ConsumerState<TodoTile>
     final glitter = context.glitter;
     final scheme = Theme.of(context).colorScheme;
     final mutedColor = scheme.onSurface.withValues(alpha: 0.5);
-    // Glow halo in the same color as the text — see GlitterShadows.
-    // Using the text color (instead of the bg surface color) keeps the
-    // glyph's AA edges crisp at full saturation: edges blend dark-with-
-    // dark in light mode (was dark-with-light → washed-out lavender)
-    // and light-with-light in dark mode.
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
-      shadows: GlitterShadows.aroundText(glitter.content),
     );
 
     return ListTile(
@@ -153,26 +148,31 @@ class _TodoTileState extends ConsumerState<TodoTile>
           ],
         ),
       ),
-      title: _editing
-          ? TextField(
-              controller: _controller,
-              focusNode: _focusNode,
-              style: baseStyle,
-              cursorColor: glitter.content,
-              onSubmitted: (_) => _commit(),
-              onTapOutside: (_) => _commit(),
-              decoration: const InputDecoration(
-                isDense: true,
-                contentPadding: EdgeInsets.zero,
-                border: InputBorder.none,
-              ),
-            )
-          : RainbowStrikethrough(
-              text: widget.item.text,
-              baseStyle: baseStyle,
-              mutedColor: mutedColor,
-              progress: _checkCtrl,
-            ),
+      title: ClipRect(
+        child: BackdropFilter(
+          filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+          child: _editing
+              ? TextField(
+                  controller: _controller,
+                  focusNode: _focusNode,
+                  style: baseStyle,
+                  cursorColor: glitter.content,
+                  onSubmitted: (_) => _commit(),
+                  onTapOutside: (_) => _commit(),
+                  decoration: const InputDecoration(
+                    isDense: true,
+                    contentPadding: EdgeInsets.zero,
+                    border: InputBorder.none,
+                  ),
+                )
+              : RainbowStrikethrough(
+                  text: widget.item.text,
+                  baseStyle: baseStyle,
+                  mutedColor: mutedColor,
+                  progress: _checkCtrl,
+                ),
+        ),
+      ),
       onTap: _editing ? null : _startEdit,
       onLongPress: _editing ? null : _showItemMenu,
       trailing: ReorderableDragStartListener(

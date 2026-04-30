@@ -1,11 +1,11 @@
 import 'dart:math' as math;
+import 'dart:ui' show ImageFilter;
 
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
-import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 
@@ -67,11 +67,6 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
-      // Glow halo in the same color as the text — see GlitterShadows.
-      // Using the text color (instead of the bg surface color) so the
-      // AA edges of the glyph blend with the matching halo and stay
-      // crisp at full saturation.
-      shadows: GlitterShadows.aroundText(context.glitter.content),
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side
@@ -162,12 +157,17 @@ class _HomePageState extends ConsumerState<HomePage> {
             crossAxisAlignment: CrossAxisAlignment.center,
             children: [
               Expanded(
-                child: Text(
-                  titleText,
-                  style: titleStyle,
-                  maxLines: 3,
-                  softWrap: true,
-                  overflow: TextOverflow.ellipsis,
+                child: ClipRect(
+                  child: BackdropFilter(
+                    filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
+                    child: Text(
+                      titleText,
+                      style: titleStyle,
+                      maxLines: 3,
+                      softWrap: true,
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                  ),
                 ),
               ),
               _PageDots(
