@@ -5,7 +5,7 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
 import 'add_list_sheet.dart';
-import 'cloud_blur.dart';
+import 'glitter_shadows.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 
@@ -67,6 +67,8 @@ class _HomePageState extends ConsumerState<HomePage> {
       fontSize: context.glitter.titleFontSize,
       fontFamily: 'Sniglet',
       height: 1.2,
+      // Per-glyph diffusion cloud — see GlitterShadows for the math.
+      shadows: GlitterShadows.aroundText(Theme.of(context).colorScheme.surface),
     );
     // Rough horizontal budget: screen width minus AppBar padding, the
     // hamburger action, page dots, and Row spacing. Errs on the tight side
@@ -112,14 +114,15 @@ class _HomePageState extends ConsumerState<HomePage> {
         // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
         // — so horizontal pan has ~60% more travel than vertical (matches
         // the requested motion ratio: bigger horizontal swing on swipe
-        // than vertical swing on scroll).
+        // than vertical swing on scroll). The Transform wraps only the bg
+        // layer; the Scaffold sits on top, untouched.
         //
         // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
-        // for an HDR-like pop. CloudBlur composites a Gaussian-blurred
-        // copy of this same bg on top, masked by the foreground (Scaffold)
-        // silhouette — so the bg pixels behind text/chrome get genuinely
-        // blurred, with a soft cloud falloff into the raw bg around them.
-        final bg = Stack(
+        // for an HDR-like pop. There's no global scrim layer — diffusion
+        // is delivered per-glyph via TextStyle.shadows in `titleStyle` and
+        // TodoTile's `baseStyle`, so the bg only mutes within ~10 px of
+        // text and stays raw everywhere else.
+        return Stack(
           fit: StackFit.expand,
           children: [
             ColoredBox(color: surface),
@@ -145,11 +148,8 @@ class _HomePageState extends ConsumerState<HomePage> {
                 ),
               ),
             ),
+            ?child,
           ],
-        );
-        return CloudBlur(
-          bg: bg,
-          foreground: child!,
         );
       },
       child: Scaffold(
