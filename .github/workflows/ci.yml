@@ -68,18 +68,44 @@ jobs:
           profile: pixel_6
           script: |
             set -e
-            echo "=== Integration pass 1: light mode ==="
+            # TEMPORARY: regenerate goldens against the current runner.
+            # The May 2026 Flutter / system-image bump shifted the
+            # FlutterView's captured area from 1080x2400 to 1080x2337
+            # (lost the bottom nav-bar inset), and the previous PR
+            # merged with these failing. Capture fresh baselines once
+            # here, then revert this block in the next commit.
+            echo "=== Regen pass: light mode (--update-goldens) ==="
             adb shell "cmd uimode night no"
-            sleep 2  # let the config-change broadcast propagate
+            sleep 2
+            flutter test integration_test/goldens/ --update-goldens
+
+            echo "=== Regen pass: dark mode (--update-goldens) ==="
+            adb shell "cmd uimode night yes"
+            sleep 2
+            flutter test integration_test/goldens/ --update-goldens
+
+            echo "=== Verification pass 1: light mode ==="
+            adb shell "cmd uimode night no"
+            sleep 2
             flutter test integration_test/
 
-            echo "=== Integration pass 2: dark mode ==="
+            echo "=== Verification pass 2: dark mode ==="
             adb shell "cmd uimode night yes"
             sleep 2
             flutter test integration_test/
 
             echo "=== Restoring light mode ==="
             adb shell "cmd uimode night no"
+      - name: Upload regenerated goldens
+        # TEMPORARY (paired with the --update-goldens block above):
+        # surface the freshly captured PNGs as an artifact so they
+        # can be downloaded and committed back to the repo.
+        if: always()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: regenerated-goldens
+          path: integration_test/goldens/goldens/*.png
+          if-no-files-found: error
       - name: Upload golden failures
         # Runs only if a previous step failed, AND only when a failures
         # dir exists (matchesGoldenFile writes the actual-rendered PNG
