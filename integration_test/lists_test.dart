@@ -7,6 +7,11 @@ import '../test/helpers/test_harness.dart';
 
 /// List-management integration tests: create a list from the popup menu,
 /// switch between lists via horizontal swipe.
+///
+/// Brightness is intentionally NOT overridden here — the app reads the
+/// emulator's actual platform brightness, which CI flips between passes
+/// via `adb shell cmd uimode night yes/no` to exercise both light and
+/// dark modes against [MaterialApp.themeMode] = [ThemeMode.system].
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 

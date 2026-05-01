@@ -17,17 +17,6 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Golden-image tests for visually load-bearing surfaces
-
-- **Status:** Candidate
-- **Priority:** Medium
-- **Why:** Behavioral integration tests (shipped in 0.5.0) verify state transitions but can't see whether the rainbow strikethrough actually drew, whether the glitter outline squiggle aligned to its line metrics, whether per-line frosted strips ended up tight to each line's content width, etc. Goldens are the only way to catch silent visual regressions in the engine-rendering surfaces that make this app what it is.
-- **Scope:** Pick a stable surface set — empty-state hero (caticorn + "Empty list…" line), single list with mixed done/glittered items, AppBar with a wrapped 2–3-line title, page-dot strip with multiple lists. Use `matchesGoldenFile` against a pinned device profile (`Surface.android-x64` or similar). Skip animation mid-frame goldens — pin `tester.pump(Duration)` to known end states only. Run on the existing `Integration tests (Android emulator)` CI job, keyed by host (Linux-only lane) so cross-platform GPU/font-hinting drift doesn't fail the job for legitimate code reviewers running on macOS.
-- **Risk / cost:** ~half day to pick surfaces and pin baselines; flake budget is real. The standard mitigation is `golden_toolkit` (archived) → `alchemist` (Very Good Ventures, maintained), but vanilla `matchesGoldenFile` may be enough for a project this size. Decide before implementing.
-- **Depends on:** Branch protection should pin the existing `Integration tests (Android emulator)` check on `main` first so a golden flake doesn't gate a merge if the lane isn't actually required yet.
-
----
-
 # Hoist `BgParallaxScope` above `MaterialApp`
 
 - **Status:** Candidate

@@ -31,9 +31,39 @@ export 'package:glitter_list/dev/scenarios.dart';
   );
 }
 
+/// Returns the device's actual platform brightness, read directly
+/// from the engine's [PlatformDispatcher].
+///
+/// Used by golden tests to pick a brightness-keyed filename
+/// (`<surface>_light.png` vs `_dark.png`) when CI flips system dark
+/// mode between integration-test passes via `adb shell cmd uimode
+/// night yes/no`.
+///
+/// We do NOT route this through `MediaQuery.platformBrightnessOf` on a
+/// widget context because that walks up the ancestor chain and falls
+/// back to [Brightness.light] when no MediaQuery is found. Looking up
+/// from `GlitterListApp`'s element in particular is fragile: the
+/// MediaQuery that reflects platform brightness is created INSIDE
+/// `MaterialApp` (a descendant of GlitterListApp), so the ancestor
+/// chain at GlitterListApp's level relies on whatever default MediaQuery
+/// the test runner provides. Reading from `platformDispatcher` is
+/// unambiguous and consistent across test bindings.
+Brightness goldenBrightness() =>
+    WidgetsBinding.instance.platformDispatcher.platformBrightness;
+
 /// Pump [GlitterListApp] wrapped in a [ProviderScope] with the
-/// dependency providers overridden, plus a forced [Brightness] via
-/// MediaQuery so tests don't depend on the host's system theme.
+/// dependency providers overridden, plus an optional forced
+/// [Brightness] via MediaQuery so tests don't depend on the host's
+/// system theme.
+///
+/// When [brightness] is omitted (the integration-test path on a real
+/// emulator), the test inherits the device's actual platform brightness
+/// — useful when CI flips system dark mode via
+/// `adb shell cmd uimode night yes` between passes. In that case the
+/// app is mounted directly under [UncontrolledProviderScope] without a
+/// MediaQuery wrapper, so Flutter's automatic root MediaQuery (driven
+/// by the device) reaches [MaterialApp] and `ThemeMode.system` resolves
+/// against the real platform brightness.
 ///
 /// Returns the [ProviderContainer] so callers can assert directly on
 /// state (`container.read(appStateProvider)`) without spelunking the
@@ -48,7 +78,7 @@ export 'package:glitter_list/dev/scenarios.dart';
 /// pumps once they've tapped anything that animates.)
 Future<ProviderContainer> pumpAppWith(
   WidgetTester tester, {
-  Brightness brightness = Brightness.light,
+  Brightness? brightness,
   HiveRepository? repo,
   AppState? initial,
 }) async {
@@ -62,11 +92,14 @@ Future<ProviderContainer> pumpAppWith(
   await tester.pumpWidget(
     UncontrolledProviderScope(
       container: container,
-      child: MediaQuery(
-        data: MediaQueryData(platformBrightness: brightness),
-        child: const GlitterListApp(),
-      ),
+      child: brightness == null
+          ? const GlitterListApp()
+          : MediaQuery(
+              data: MediaQueryData(platformBrightness: brightness),
+              child: const GlitterListApp(),
+            ),
     ),
   );
   return container;
 }
+
