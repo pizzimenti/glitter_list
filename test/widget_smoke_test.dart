@@ -1,23 +1,10 @@
 import 'package:flutter/material.dart';
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
-import 'package:glitter_list/main.dart';
 import 'package:glitter_list/models/todo_item.dart';
 import 'package:glitter_list/models/todo_list.dart';
 import 'package:glitter_list/state/app_state.dart';
-import 'package:glitter_list/storage/hive_repository.dart';
 
-/// In-memory fake of [HiveRepository] — same shape as the one in
-/// app_state_test.dart, so widget tests never touch disk and avoid the
-/// `Hive.initFlutter` path-provider plugin entirely.
-class _FakeRepo extends HiveRepository {
-  @override
-  Future<void> init() async {}
-  @override
-  List<TodoList> load() => [];
-  @override
-  Future<void> save(List<TodoList> lists) async {}
-}
+import 'helpers/test_harness.dart';
 
 /// Build a [TodoList] with [count] simple items. Item ids are stable and
 /// distinct across the whole tree so [ReorderableListView]'s key
@@ -37,32 +24,12 @@ TodoList _listWith({
   );
 }
 
-/// Wrap [GlitterListApp] with a forced [Brightness] via MediaQuery so the
-/// test does not depend on the host's system theme. The repo + initial
-/// state are injected via the dep providers; Riverpod constructs the
-/// notifier once per ProviderScope.
-Widget _appWithBrightness({
-  required Brightness brightness,
-  required HiveRepository repo,
-  required AppState initial,
-}) {
-  return ProviderScope(
-    overrides: [
-      hiveRepositoryProvider.overrideWithValue(repo),
-      initialAppStateProvider.overrideWithValue(initial),
-    ],
-    child: MediaQuery(
-      data: MediaQueryData(platformBrightness: brightness),
-      child: const GlitterListApp(),
-    ),
-  );
-}
-
 Future<void> _pumpAndAssertNoErrors(
-  WidgetTester tester,
-  Widget app,
-) async {
-  await tester.pumpWidget(app);
+  WidgetTester tester, {
+  required Brightness brightness,
+  required AppState initial,
+}) async {
+  await pumpAppWith(tester, brightness: brightness, initial: initial);
   // First explicit frame: state attached but pre-layout. This is the
   // window where _ScrollIndicator previously threw "Null check operator
   // used on a null value" via ScrollPosition's !-guarded metric getters.
@@ -127,11 +94,8 @@ void main() {
         testWidgets('${c.name} — ${brightness.name}', (tester) async {
           await _pumpAndAssertNoErrors(
             tester,
-            _appWithBrightness(
-              brightness: brightness,
-              repo: _FakeRepo(),
-              initial: c.build(),
-            ),
+            brightness: brightness,
+            initial: c.build(),
           );
         });
       }
@@ -146,11 +110,11 @@ void main() {
           lists: [_listWith(id: 'L1', name: 'Fifty', count: 50)],
           currentListIndex: 0,
         );
-        await tester.pumpWidget(_appWithBrightness(
+        await pumpAppWith(
+          tester,
           brightness: Brightness.light,
-          repo: _FakeRepo(),
           initial: state,
-        ));
+        );
         await tester.pumpAndSettle();
         expect(tester.takeException(), isNull);
 

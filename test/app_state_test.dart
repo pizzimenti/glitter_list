@@ -1,35 +1,13 @@
-import 'package:flutter_riverpod/flutter_riverpod.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitter_list/models/todo_item.dart';
 import 'package:glitter_list/models/todo_list.dart';
 import 'package:glitter_list/state/app_state.dart';
-import 'package:glitter_list/storage/hive_repository.dart';
 
-class _FakeRepo extends HiveRepository {
-  int saveCalls = 0;
-  @override
-  Future<void> init() async {}
-  @override
-  List<TodoList> load() => [];
-  @override
-  Future<void> save(List<TodoList> lists) async {
-    saveCalls++;
-  }
-}
-
-({_FakeRepo repo, AppStateNotifier notifier}) _build(AppState initial) {
-  final repo = _FakeRepo();
-  final container = ProviderContainer(overrides: [
-    hiveRepositoryProvider.overrideWithValue(repo),
-    initialAppStateProvider.overrideWithValue(initial),
-  ]);
-  addTearDown(container.dispose);
-  return (repo: repo, notifier: container.read(appStateProvider.notifier));
-}
+import 'helpers/test_harness.dart';
 
 void main() {
   group('AppStateNotifier.reorderItem', () {
-    late _FakeRepo repo;
+    late InMemoryRepository repo;
     late AppStateNotifier notifier;
 
     setUp(() {
@@ -38,7 +16,7 @@ void main() {
         TodoItem(id: 'B', text: 'b'),
         TodoItem(id: 'C', text: 'c'),
       ]);
-      final built = _build(AppState(lists: [list], currentListIndex: 0));
+      final built = buildNotifier(AppState(lists: [list], currentListIndex: 0));
       repo = built.repo;
       notifier = built.notifier;
     });
@@ -77,7 +55,7 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      notifier = _build(AppState(
+      notifier = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'a'),
           TodoList(id: 'L2', name: 'b'),
@@ -113,7 +91,7 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      notifier = _build(AppState(
+      notifier = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'a'),
           TodoList(id: 'L2', name: 'b'),
@@ -164,7 +142,7 @@ void main() {
     late AppStateNotifier notifier;
 
     setUp(() {
-      notifier = _build(AppState(
+      notifier = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'L1', items: [
             TodoItem(id: 'A', text: 'a'),
@@ -212,11 +190,11 @@ void main() {
   });
 
   group('AppStateNotifier unknown-id guards', () {
-    late _FakeRepo repo;
+    late InMemoryRepository repo;
     late AppStateNotifier notifier;
 
     setUp(() {
-      final built = _build(AppState(
+      final built = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'L1', items: [
             TodoItem(id: 'A', text: 'a'),
@@ -271,11 +249,11 @@ void main() {
   });
 
   group('AppStateNotifier.clearCompleted', () {
-    late _FakeRepo repo;
+    late InMemoryRepository repo;
     late AppStateNotifier notifier;
 
     setUp(() {
-      final built = _build(AppState(
+      final built = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'L1', items: [
             TodoItem(id: 'A', text: 'a'),
@@ -298,9 +276,9 @@ void main() {
     });
 
     test('no-op when nothing is done (and does not persist)', () async {
-      // Build a fresh container for this test — its own _FakeRepo so
-      // saveCalls assertion isn't polluted by the outer setUp's notifier.
-      final fresh = _build(AppState(
+      // Build a fresh container for this test — its own InMemoryRepository
+      // so saveCalls assertion isn't polluted by the outer setUp's notifier.
+      final fresh = buildNotifier(AppState(
         lists: [
           TodoList(id: 'L1', name: 'L1', items: [
             TodoItem(id: 'A', text: 'a'),
