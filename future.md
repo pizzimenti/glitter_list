@@ -17,14 +17,14 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Integration tests (real device / emulator UI QA)
+# Golden-image tests for visually load-bearing surfaces
 
 - **Status:** Candidate
 - **Priority:** Medium
-- **Why:** Today the only automated coverage is unit tests (`test/app_state_test.dart`) and a widget smoke test (`test/widget_smoke_test.dart`). Anything that depends on real engine rendering — per-line frosted strips, rainbow strikethrough timing, sparkle bursts, scroll/parallax behavior, drag-reorder inside the Overlay, line-height + spacing tweaks like the recent compaction pass — has to be eyeballed on a device every change. That's both a regression risk and a blocker for letting Claude self-verify UI work; widget tests can't see the things this app most cares about.
-- **Scope:** Add `integration_test` (Flutter SDK package) + a `test_driver/integration_test.dart` runner. Cover the golden paths first: create a list, add an item, edit it, toggle done (verify strikethrough renders), long-press → glitter / delete, reorder. Then add a small set of golden-image tests for the visually load-bearing surfaces (empty state, list with mixed done/glittered items, drag proxy in flight) — `matchesGoldenFile` against a pinned `Surface.android-x64` device profile. Wire `flutter test integration_test` into a CI lane, and document the manual `flutter drive --driver=test_driver/integration_test.dart --target=integration_test/<file>.dart -d emulator-5554` invocation in CLAUDE.md so Claude can run it during a session.
-- **Risk / cost:** ~1 day for the golden-path script suite, +half day for goldens (goldens are flaky across host GPUs / font hinting — usually ends up in a "Linux CI only" lane). Animations make exact-frame goldens brittle; pin `tester.pump(Duration)` calls explicitly and prefer end-state captures over mid-animation ones.
-- **Depends on:** Nothing — though it pairs naturally with any future CI setup.
+- **Why:** Behavioral integration tests (shipped in 0.5.0) verify state transitions but can't see whether the rainbow strikethrough actually drew, whether the glitter outline squiggle aligned to its line metrics, whether per-line frosted strips ended up tight to each line's content width, etc. Goldens are the only way to catch silent visual regressions in the engine-rendering surfaces that make this app what it is.
+- **Scope:** Pick a stable surface set — empty-state hero (caticorn + "Empty list…" line), single list with mixed done/glittered items, AppBar with a wrapped 2–3-line title, page-dot strip with multiple lists. Use `matchesGoldenFile` against a pinned device profile (`Surface.android-x64` or similar). Skip animation mid-frame goldens — pin `tester.pump(Duration)` to known end states only. Run on the existing `Integration tests (Android emulator)` CI job, keyed by host (Linux-only lane) so cross-platform GPU/font-hinting drift doesn't fail the job for legitimate code reviewers running on macOS.
+- **Risk / cost:** ~half day to pick surfaces and pin baselines; flake budget is real. The standard mitigation is `golden_toolkit` (archived) → `alchemist` (Very Good Ventures, maintained), but vanilla `matchesGoldenFile` may be enough for a project this size. Decide before implementing.
+- **Depends on:** Branch protection should pin the existing `Integration tests (Android emulator)` check on `main` first so a golden flake doesn't gate a merge if the lane isn't actually required yet.
 
 ---
 
