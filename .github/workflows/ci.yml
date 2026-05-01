@@ -80,3 +80,15 @@ jobs:
 
             echo "=== Restoring light mode ==="
             adb shell "cmd uimode night no"
+      - name: Upload golden failures
+        # Runs only if a previous step failed, AND only when a failures
+        # dir exists (matchesGoldenFile writes the actual-rendered PNG
+        # there on a pixel mismatch). Uploaded as a workflow artifact so
+        # the diff is inspectable from the GitHub UI without re-running
+        # locally.
+        if: failure()
+        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
+        with:
+          name: golden-failures
+          path: '**/failures/*.png'
+          if-no-files-found: ignore

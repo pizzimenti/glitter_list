@@ -1,4 +1,3 @@
-import 'package:flutter/material.dart';
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitter_list/main.dart';
 import 'package:integration_test/integration_test.dart';
@@ -25,9 +24,7 @@ void main() {
     // seed has no animations triggered, so settle is fast.
     await tester.pumpAndSettle(const Duration(seconds: 5));
 
-    final brightness = MediaQuery.platformBrightnessOf(
-      tester.element(find.byType(GlitterListApp)),
-    );
+    final brightness = goldenBrightness();
 
     await expectLater(
       find.byType(GlitterListApp),
