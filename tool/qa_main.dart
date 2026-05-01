@@ -46,6 +46,7 @@ void main() {
   const brightnessName =
       String.fromEnvironment('BRIGHTNESS', defaultValue: 'light');
 
+  var resolvedName = scenarioName;
   var initial = Scenarios.byName(scenarioName);
   if (initial == null) {
     debugPrint(
@@ -53,12 +54,13 @@ void main() {
       'falling back to "${Scenarios.defaultName}". '
       'Known: ${Scenarios.names.join(", ")}',
     );
+    resolvedName = Scenarios.defaultName;
     initial = Scenarios.byName(Scenarios.defaultName)!;
   }
   final brightness = brightnessName == 'dark' ? Brightness.dark : Brightness.light;
 
   debugPrint(
-    '[qa] booting scenario="$scenarioName" '
+    '[qa] booting scenario="$resolvedName" '
     'brightness="${brightness.name}" '
     'lists=${initial.lists.length}',
   );

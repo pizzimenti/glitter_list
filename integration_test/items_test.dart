@@ -96,7 +96,10 @@ void main() {
       expect(find.text('Glitter Item'), findsOneWidget);
 
       await tester.tap(find.widgetWithText(ListTile, 'Glitter Item'));
-      await tester.pumpAndSettle();
+      // Sheet dismiss is bounded; the GlitterOutline draw-in animation
+      // is 1.2s. Pump past both deterministically — pumpAndSettle here
+      // would block on the running animation per the project rule.
+      await tester.pump(const Duration(milliseconds: 1300));
 
       final item = container.read(appStateProvider).lists[0].items[2];
       expect(item.glittered, isTrue);
@@ -141,7 +144,10 @@ void main() {
         const Offset(0, 200),
         const Duration(milliseconds: 600),
       );
-      await tester.pumpAndSettle();
+      // ReorderableListView's drop animation is bounded (~250ms snap);
+      // use a timed pump rather than pumpAndSettle since this lands
+      // post-trigger.
+      await tester.pump(const Duration(milliseconds: 500));
 
       final items = container.read(appStateProvider).lists[0].items;
       expect(items.length, 3);

@@ -16,6 +16,16 @@ All notable changes to **Glitter List** are documented here. The format follows 
 ### Changed
 
 - **Test fakes extracted.** The inline `_FakeRepo` duplicated across `test/app_state_test.dart` and `test/widget_smoke_test.dart` is now a single public `InMemoryRepository` in `lib/dev/`. The widget pump helper is unified into `pumpAppWith(tester, ...)` in `test/helpers/test_harness.dart`, returning a `ProviderContainer` so callers can read state directly. Both existing test files were refactored to use the harness; behavior is unchanged (still 41 passing tests).
+- **Tighter line spacing in `TodoTile`.** `baseStyle.height` clamped to 1.0 (was the font's default ~1.3) so wrapped lines inside a single item pack visibly closer. `ListTile.minVerticalPadding: 2` plus `contentPadding.vertical: 2` shaves ~4px off each row's gap without intruding on the 64×64 sparkle slot. Landed on main first as a small patch (`c70adf4`) and is being released here as part of 0.5.0.
+
+### Fixed
+
+- None.
+
+### Notes
+
+- Goldens are intentionally deferred to a follow-up CI lane (PR 2 in the original split). They flake across host GPUs and font hinting; landing them on the new CI lane needs a known-stable baseline first. Tracked in `future.md`.
+- This is the first release with CI on the repo. Branch protection should pin the three required checks (`Analyze`, `Unit + widget tests`, `Integration tests (Android emulator)`) on `main` before the next merge.
 
 ## [0.4.0] - 2026-04-30
 
