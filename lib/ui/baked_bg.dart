@@ -5,6 +5,8 @@ import 'package:flutter/services.dart';
 import 'package:flutter/widgets.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
+import '../state/app_state.dart';
+
 /// A pre-rendered, full-pipeline copy of the active glitter background —
 /// cover-fit to a *scaled* viewport (so per-tile strips can sample any
 /// parallax position without running out of pixels at the edges),
@@ -265,4 +267,135 @@ class BgParallaxScope extends InheritedWidget {
   bool updateShouldNotify(BgParallaxScope old) =>
       parallax.listenable != old.parallax.listenable ||
       parallax.alignment != old.parallax.alignment;
+}
+
+/// Hosts the parallax state (`PageController`, vertical-scroll progress,
+/// merged listenable) and publishes [BgParallaxScope] above
+/// [MaterialApp]. Sits inside `GlitterListApp.build` so the scope is
+/// reachable from every `OverlayEntry` (`showDialog`, `PopupMenuButton`,
+/// `ReorderableListView`'s drag proxy) — those reparent into Navigator's
+/// root Overlay, which is below this host.
+///
+/// Two scopes are published below the host:
+/// - [BgParallaxScope] — read-only `listenable` + `alignment` for any
+///   widget that paints frosted strips (overlay-routed or otherwise).
+/// - [BgParallaxControls] — the live `PageController` + vertical-scroll
+///   `ValueNotifier<double>` that `HomePage` wires into `PageView` and
+///   the `NotificationListener`.
+class BgParallaxHost extends ConsumerStatefulWidget {
+  const BgParallaxHost({super.key, required this.child});
+
+  final Widget child;
+
+  @override
+  ConsumerState<BgParallaxHost> createState() => _BgParallaxHostState();
+}
+
+class _BgParallaxHostState extends ConsumerState<BgParallaxHost> {
+  late final PageController _controller;
+  // Background's vertical pan, mapped from the active list's scroll
+  // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
+  // glitter pans down as the list scrolls down. Starts at -1 (top of
+  // image, matching an unscrolled list).
+  final ValueNotifier<double> _verticalT = ValueNotifier(-1);
+  late final Listenable _bgListenable;
+
+  @override
+  void initState() {
+    super.initState();
+    _controller = PageController(
+      initialPage: ref.read(appStateProvider).currentListIndex,
+    );
+    _bgListenable = Listenable.merge([_controller, _verticalT]);
+  }
+
+  @override
+  void dispose() {
+    _verticalT.dispose();
+    _controller.dispose();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    ref.listen<AppState>(appStateProvider, (prev, next) {
+      if (!_controller.hasClients) return;
+      final page = _controller.page?.round();
+      if (page != next.currentListIndex &&
+          next.currentListIndex < next.lists.length) {
+        _controller.animateToPage(
+          next.currentListIndex,
+          duration: const Duration(milliseconds: 250),
+          curve: Curves.easeOut,
+        );
+      }
+    });
+
+    final state = ref.watch(appStateProvider);
+
+    return AnimatedBuilder(
+      animation: _bgListenable,
+      builder: (context, child) {
+        final maxIndex = state.lists.length - 1;
+        double alignmentX = 0;
+        if (maxIndex > 0) {
+          // Before the controller has clients (first frame) `page` throws,
+          // so fall back to the initial index until the PageView attaches.
+          final page = _controller.hasClients
+              ? (_controller.page ?? state.currentListIndex.toDouble())
+              : state.currentListIndex.toDouble();
+          alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
+        }
+        final alignment = Alignment(alignmentX, _verticalT.value);
+        return BgParallaxScope(
+          parallax: BgParallax(
+            listenable: _bgListenable,
+            alignment: alignment,
+          ),
+          child: child!,
+        );
+      },
+      child: BgParallaxControls(
+        controller: _controller,
+        verticalT: _verticalT,
+        bgListenable: _bgListenable,
+        child: widget.child,
+      ),
+    );
+  }
+}
+
+/// Exposes the live [PageController], vertical-scroll [ValueNotifier],
+/// and merged repaint listenable owned by [BgParallaxHost] to
+/// `HomePage`'s `PageView`, `NotificationListener`, and bg-layer
+/// `AnimatedBuilder`. All three references are stable for the host's
+/// lifetime, so [updateShouldNotify] returns false and dependents do
+/// not rebuild on every parallax tick — `HomePage`'s expensive
+/// [TextPainter] title measurement only re-runs on real state changes.
+class BgParallaxControls extends InheritedWidget {
+  const BgParallaxControls({
+    super.key,
+    required this.controller,
+    required this.verticalT,
+    required this.bgListenable,
+    required super.child,
+  });
+
+  final PageController controller;
+  final ValueNotifier<double> verticalT;
+  final Listenable bgListenable;
+
+  static BgParallaxControls of(BuildContext context) {
+    final scope =
+        context.dependOnInheritedWidgetOfExactType<BgParallaxControls>();
+    assert(scope != null,
+        'BgParallaxControls.of called above the BgParallaxHost.');
+    return scope!;
+  }
+
+  @override
+  bool updateShouldNotify(BgParallaxControls old) =>
+      !identical(controller, old.controller) ||
+      !identical(verticalT, old.verticalT) ||
+      !identical(bgListenable, old.bgListenable);
 }

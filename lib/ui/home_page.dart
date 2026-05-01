@@ -19,47 +19,15 @@ class HomePage extends ConsumerStatefulWidget {
 }
 
 class _HomePageState extends ConsumerState<HomePage> {
-  late final PageController _controller;
-  // Background's vertical pan, mapped from the active list's scroll
-  // offset into [-1, +1]. Drives `Alignment(_, y)` on the bg image so
-  // glitter pans down as the list scrolls down. Starts at -1 (top of
-  // image, matching an unscrolled list). Per-line frosted strips no
-  // longer source from a live BackdropFilter (they sample a pre-baked
-  // ui.Image) so we can update this on every ScrollUpdateNotification
-  // without re-introducing the engine's vertical-scroll tearing race.
-  final ValueNotifier<double> _verticalT = ValueNotifier(-1);
-  late final Listenable _bgListenable;
-
-  @override
-  void initState() {
-    super.initState();
-    _controller = PageController(
-      initialPage: ref.read(appStateProvider).currentListIndex,
-    );
-    _bgListenable = Listenable.merge([_controller, _verticalT]);
-  }
-
-  @override
-  void dispose() {
-    _verticalT.dispose();
-    _controller.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
-    ref.listen<AppState>(appStateProvider, (prev, next) {
-      if (!_controller.hasClients) return;
-      final page = _controller.page?.round();
-      if (page != next.currentListIndex &&
-          next.currentListIndex < next.lists.length) {
-        _controller.animateToPage(
-          next.currentListIndex,
-          duration: const Duration(milliseconds: 250),
-          curve: Curves.easeOut,
-        );
-      }
-    });
+    // PageController + vertical-scroll progress + repaint listenable
+    // live in BgParallaxHost (above MaterialApp). All three references
+    // are stable for the app's lifetime, so reading them from the
+    // controls scope does NOT make HomePage rebuild on every parallax
+    // tick — the bg-layer AnimatedBuilder below handles per-tick
+    // repaints by reading `BgParallaxScope` from inside its builder.
+    final controls = BgParallaxControls.of(context);
 
     final state = ref.watch(appStateProvider);
     final notifier = ref.read(appStateProvider.notifier);
@@ -99,67 +67,52 @@ class _HomePageState extends ConsumerState<HomePage> {
         : 'assets/images/bg_light.png';
     final surface = theme.colorScheme.surface;
 
+    // Scale the bg image past `cover` so panning has slack on BOTH
+    // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
+    // — so horizontal pan has ~60% more travel than vertical (matches
+    // the requested motion ratio: bigger horizontal swing on swipe
+    // than vertical swing on scroll). The Transform wraps only the bg
+    // layer; the Scaffold sits on top, untouched.
+    //
+    // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
+    // for an HDR-like pop. The matching `alignment` + `listenable`
+    // are published from BgParallaxHost above MaterialApp; each
+    // PreBakedBackdrop strip reads them via BgParallaxScope to sample
+    // the matching slice of the pre-baked, pre-blurred bg image and
+    // force-repaint per scroll frame.
     return AnimatedBuilder(
-      animation: _bgListenable,
+      animation: controls.bgListenable,
       builder: (context, child) {
-        final maxIndex = state.lists.length - 1;
-        double alignmentX = 0;
-        if (maxIndex > 0) {
-          // Before the controller has clients (first frame) `page` throws,
-          // so fall back to the initial index until the PageView attaches.
-          final page = _controller.hasClients
-              ? (_controller.page ?? state.currentListIndex.toDouble())
-              : state.currentListIndex.toDouble();
-          alignmentX = ((page / maxIndex) * 2 - 1).clamp(-1.0, 1.0);
-        }
-        final alignment = Alignment(alignmentX, _verticalT.value);
-        // Scale the bg image past `cover` so panning has slack on BOTH
-        // axes. The scale is asymmetric — 1.48 horizontal / 1.39 vertical
-        // — so horizontal pan has ~60% more travel than vertical (matches
-        // the requested motion ratio: bigger horizontal swing on swipe
-        // than vertical swing on scroll). The Transform wraps only the bg
-        // layer; the Scaffold sits on top, untouched.
-        //
-        // Saturation is boosted on the image (Rec. 709 luminance, s=1.3)
-        // for an HDR-like pop. The same parallax `alignment` and the
-        // merged `_bgListenable` are pushed into BgParallaxScope so each
-        // PreBakedBackdrop strip can sample the matching slice of the
-        // pre-baked, pre-blurred bg image and force-repaint per scroll
-        // frame.
-        return BgParallaxScope(
-          parallax: BgParallax(
-            listenable: _bgListenable,
-            alignment: alignment,
-          ),
-          child: Stack(
-            fit: StackFit.expand,
-            children: [
-              ColoredBox(color: surface),
-              ClipRect(
-                child: Transform(
-                  transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
-                  alignment: alignment,
-                  child: DecoratedBox(
-                    decoration: BoxDecoration(
-                      image: DecorationImage(
-                        image: AssetImage(bgAsset),
-                        fit: BoxFit.cover,
-                        // Saturation matrix, s=1.3, Rec. 709 weights:
-                        // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
-                        colorFilter: const ColorFilter.matrix(<double>[
-                          1.23622, -0.21456, -0.02166, 0, 0,
-                          -0.06378, 1.08544, -0.02166, 0, 0,
-                          -0.06378, -0.21456, 1.27834, 0, 0,
-                          0, 0, 0, 1, 0,
-                        ]),
-                      ),
+        final parallax = BgParallaxScope.maybeOf(context);
+        final alignment = parallax?.alignment ?? Alignment.center;
+        return Stack(
+          fit: StackFit.expand,
+          children: [
+            ColoredBox(color: surface),
+            ClipRect(
+              child: Transform(
+                transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
+                alignment: alignment,
+                child: DecoratedBox(
+                  decoration: BoxDecoration(
+                    image: DecorationImage(
+                      image: AssetImage(bgAsset),
+                      fit: BoxFit.cover,
+                      // Saturation matrix, s=1.3, Rec. 709 weights:
+                      // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
+                      colorFilter: const ColorFilter.matrix(<double>[
+                        1.23622, -0.21456, -0.02166, 0, 0,
+                        -0.06378, 1.08544, -0.02166, 0, 0,
+                        -0.06378, -0.21456, 1.27834, 0, 0,
+                        0, 0, 0, 1, 0,
+                      ]),
                     ),
                   ),
                 ),
               ),
-              ?child,
-            ],
-          ),
+            ),
+            ?child,
+          ],
         );
       },
       child: Scaffold(
@@ -280,15 +233,17 @@ class _HomePageState extends ConsumerState<HomePage> {
                   final t = denom > 0
                       ? (-1 + 2 * n.metrics.pixels / denom).clamp(-1.0, 1.0)
                       : -1.0;
-                  if (_verticalT.value != t) _verticalT.value = t;
+                  if (controls.verticalT.value != t) {
+                    controls.verticalT.value = t;
+                  }
                   return false;
                 },
                 child: PageView.builder(
-                  controller: _controller,
+                  controller: controls.controller,
                   itemCount: state.lists.length,
                   onPageChanged: (i) {
                     // New list comes in at scroll offset 0 → bg back to top.
-                    _verticalT.value = -1;
+                    controls.verticalT.value = -1;
                     notifier.switchList(i);
                   },
                   itemBuilder: (_, i) {
