@@ -4,6 +4,24 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.6.0] - 2026-05-01
+
+### Added
+
+- **Golden-image tests on the actual Android emulator** — full visual-fidelity coverage of the load-bearing surfaces. Five tests under `integration_test/goldens/`, each captured at light + dark = 10 PNG baselines committed to the repo. Surfaces: per-list empty-state caticorn hero, flagship mixed-item-state list (plain / done with rainbow strikethrough at progress=1 / glittered with squiggle at progress=1 / done+glittered / multi-line wrap), AppBar with a wrapped multi-line title, page-dot strip with three lists, and an isolated glitter-outline end-state. Goldens run inside `IntegrationTestWidgetsFlutterBinding`, which means they capture the full engine raster path — frosted strips behind text, the saturated glitter bg image, and per-line painters all render authentically (vs. the widget-test path that loses async-bake content). Each test reads `MediaQuery.platformBrightness` after mount and selects its golden filename by current brightness, so the same test contributes one PNG per brightness as CI flips the emulator's system mode between passes.
+- **Dark-mode integration test pass.** `.github/workflows/ci.yml` now runs `flutter test integration_test/` twice on the Android emulator — once with `adb shell "cmd uimode night no"`, once with `... yes` — exercising `MaterialApp.themeMode: ThemeMode.system` against the device's actual platform brightness on each pass. Catches behavioral divergence and visual divergence in dark mode in one shot.
+- **Two new scenario factories** in `lib/dev/scenarios.dart`: `glitteredEndState()` (single item with `glittered: true` for the squiggle end-state golden) and `longTitle()` (single list with a long wrapping title for the AppBar golden). Both reachable from the QA runner via `--dart-define=SCENARIO=glitteredEndState` / `=longTitle`. Plus `singleListEmpty()` (one list, zero items) which triggers the per-list caticorn empty-state hero — distinct from `empty()` (zero lists) which shows the home-page "No lists" fallback.
+- **`CLAUDE.md` "Toggling system dark mode" subsection.** Documents the `adb shell cmd uimode night yes/no/auto` recipe for ad-hoc QA work, with notes on the difference between in-app brightness override and real system brightness.
+
+### Changed
+
+- **`pumpAppWith(...)` brightness is now nullable.** Previously defaulted to `Brightness.light`, forcing every test to override `MediaQuery.platformBrightness` from inside Dart. Now defaults to `null`, in which case the helper skips the MediaQuery wrap and the app reads the device's actual platform brightness — what the new dark-mode CI integration pass needs to authentically exercise `ThemeMode.system`. Existing widget smoke matrix continues to pass `Brightness.light` / `Brightness.dark` explicitly; no behavior change there.
+- **Integration test files** (`integration_test/items_test.dart`, `integration_test/lists_test.dart`) gain a dartdoc paragraph noting brightness is intentionally NOT overridden — emulator system brightness drives `ThemeMode.system`, and CI flips it between passes.
+
+### Notes
+
+- Goldens are pixel-exact against the committed baselines. If the Flutter SDK, the emulator image, or the Pixel 6 device profile changes, baselines will need regeneration: `adb shell "cmd uimode night no" && flutter test integration_test/goldens/ -d emulator-5554 --update-goldens`, then `... night yes` and re-run. `CLAUDE.md` documents the workflow.
+
 ## [0.5.0] - 2026-05-01
 
 ### Added

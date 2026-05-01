@@ -24,6 +24,9 @@ class Scenarios {
     'mixedDoneGlittered',
     'longList50',
     'multiList3',
+    'glitteredEndState',
+    'longTitle',
+    'singleListEmpty',
   ];
 
   /// Resolve a scenario by name, or null if unknown. Used by the QA
@@ -34,6 +37,9 @@ class Scenarios {
         'mixedDoneGlittered' => mixedDoneGlittered(),
         'longList50' => longList50(),
         'multiList3' => multiList3(),
+        'glitteredEndState' => glitteredEndState(),
+        'longTitle' => longTitle(),
+        'singleListEmpty' => singleListEmpty(),
         _ => null,
       };
 
@@ -114,6 +120,52 @@ class Scenarios {
             TodoItem(id: 'L2-i2', text: 'Silk pillowcase', done: true),
           ]),
           TodoList(id: 'L3', name: 'Empty', items: []),
+        ],
+        currentListIndex: 0,
+      );
+
+  /// Single list, single item with `glittered: true` so
+  /// [GlitterOutline]'s `_ctrl` is at value=1.0 on the first frame.
+  /// Used by the glitter-outline golden — captures the squiggle at its
+  /// stable end-state with no animation in flight.
+  static AppState glitteredEndState() => const AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'Glitter', items: [
+            TodoItem(
+              id: 'L1-i0',
+              text: 'Sparkle this one',
+              glittered: true,
+            ),
+          ]),
+        ],
+        currentListIndex: 0,
+      );
+
+  /// Single list, zero items. Triggers the per-list empty-state hero
+  /// in `ListPage` (caticorn image + "Empty list. Tap + to add an
+  /// item." line). Distinct from [empty] which produces zero lists
+  /// and the home-page "No lists" fallback.
+  static AppState singleListEmpty() => const AppState(
+        lists: [
+          TodoList(id: 'L1', name: 'Today', items: []),
+        ],
+        currentListIndex: 0,
+      );
+
+  /// Single list with a deliberately long name that wraps to 2-3
+  /// lines in the AppBar, plus a couple of items. Used by the AppBar
+  /// title golden — exercises the AppBar's frosted-strip path
+  /// (ungrouped, separate from the per-tile strips).
+  static AppState longTitle() => const AppState(
+        lists: [
+          TodoList(
+            id: 'L1',
+            name: 'A Really Long List Title That Definitely Wraps Onto Multiple Lines',
+            items: [
+              TodoItem(id: 'L1-i0', text: 'Just one item'),
+              TodoItem(id: 'L1-i1', text: 'And another'),
+            ],
+          ),
         ],
         currentListIndex: 0,
       );

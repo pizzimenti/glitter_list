@@ -14,6 +14,11 @@ import '../test/helpers/test_harness.dart';
 /// returned by [pumpAppWith]. Pixel-level assertions (rainbow strikethrough,
 /// glitter outline) are PR 2's golden-image territory; here we verify the
 /// behavioral state lands.
+///
+/// Brightness is intentionally NOT overridden here — the app reads the
+/// emulator's actual platform brightness, which CI flips between passes
+/// via `adb shell cmd uimode night yes/no` to exercise both light and
+/// dark modes against [MaterialApp.themeMode] = [ThemeMode.system].
 void main() {
   IntegrationTestWidgetsFlutterBinding.ensureInitialized();
 
