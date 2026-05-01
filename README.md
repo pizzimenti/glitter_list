@@ -34,3 +34,13 @@ Life is already serious enough. Your to-do list shouldn't be. 🌷
 6. 💖 Long-press an item for **Edit**, **Glitter Item**, or **Delete**
 
 That's it. Go sparkle. ✨🌈💖
+
+## 🛠️ For developers
+
+```sh
+flutter test                                    # unit + widget
+flutter test integration_test/ -d <device>      # integration on emulator
+```
+
+Project-specific dev workflow (Claude, scenarios, emulator-driven QA)
+is documented in [CLAUDE.md](CLAUDE.md).

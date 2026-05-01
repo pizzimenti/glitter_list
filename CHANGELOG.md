@@ -4,6 +4,19 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.5.0] - 2026-05-01
+
+### Added
+
+- **Integration tests on a real Android emulator.** `flutter test integration_test/ -d emulator-5554` now drives end-to-end UI flows the widget smoke tests can't reach. Two files: `integration_test/items_test.dart` covers the per-item lifecycle (add via FAB dialog, edit via long-press → Edit, toggle done, long-press → Glitter Item, long-press → Delete, drag-reorder via the handle); `integration_test/lists_test.dart` covers list management (create from popup → New List → AddListSheet, switch lists via horizontal swipe). Assertions read [appStateProvider] off the [ProviderContainer] returned by `pumpAppWith`; pixel-level checks (rainbow strikethrough, glitter outline) are deferred to a future golden-image PR. The `integration_test` SDK package is added to `dev_dependencies`.
+- **AI-first emulator plumbing.** New `lib/dev/in_memory_repository.dart` and `lib/dev/scenarios.dart` give the project a single source of truth for deterministic seed states (`empty`, `singleListShort`, `mixedDoneGlittered`, `longList50`, `multiList3`) shared between integration tests and the QA runner. `tool/qa_main.dart` is an alternate `main` entry: `flutter run -t tool/qa_main.dart -d emulator-5554 --dart-define=SCENARIO=mixedDoneGlittered --dart-define=BRIGHTNESS=dark` boots the app on top of the in-memory fake with the chosen scenario, ready for `adb exec-out screencap` capture without touching the user's real Hive box. Unknown scenario names log a warning and fall back to the default rather than throwing.
+- **CLAUDE.md.** Documents the build/codegen, analyze, unit/widget test, integration test, and emulator-driving workflows in one place. The user's README stays user-facing.
+- **GitHub Actions CI lane** at `.github/workflows/ci.yml`. Three parallel jobs on every push to `main` and every pull request: `Analyze` (`flutter analyze`), `Unit + widget tests` (`flutter test`), and `Integration tests (Android emulator)` (`reactivecircus/android-emulator-runner@v2` boots an API 34 x86_64 emulator with KVM acceleration, then runs `flutter test integration_test/`). In-flight runs cancel when a new commit lands on the same ref.
+
+### Changed
+
+- **Test fakes extracted.** The inline `_FakeRepo` duplicated across `test/app_state_test.dart` and `test/widget_smoke_test.dart` is now a single public `InMemoryRepository` in `lib/dev/`. The widget pump helper is unified into `pumpAppWith(tester, ...)` in `test/helpers/test_harness.dart`, returning a `ProviderContainer` so callers can read state directly. Both existing test files were refactored to use the harness; behavior is unchanged (still 41 passing tests).
+
 ## [0.4.0] - 2026-04-30
 
 ### Changed
