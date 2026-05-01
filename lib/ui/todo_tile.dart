@@ -141,12 +141,14 @@ class _TodoTileState extends ConsumerState<TodoTile>
     final baseStyle = TextStyle(
       color: glitter.content,
       fontSize: glitter.bodyFontSize,
+      height: 1.0,
     );
 
     return ListTile(
       key: widget.key,
       visualDensity: VisualDensity.compact,
-      contentPadding: const EdgeInsets.symmetric(horizontal: 22),
+      minVerticalPadding: 2,
+      contentPadding: const EdgeInsets.symmetric(horizontal: 22, vertical: 2),
       leading: SizedBox(
         width: 64,
         height: 64,

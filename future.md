@@ -17,15 +17,14 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Tilt-driven parallax (iOS 7 lineage)
+# Integration tests (real device / emulator UI QA)
 
 - **Status:** Candidate
-- **Priority:** Low
-- **Why:** Layer on top of the scroll-driven background parallax — list items shift subtly relative to the background as the device tilts. Same visual lineage as iOS 7 home screen icons.
-- **Scope:** `sensors_plus` (or `motion_sensors` for fused attitude). Low-pass-filter accelerometer X/Y to extract the gravity vector, map to a small per-layer translation (a few px). Compose with the existing scroll parallax. Honor `MediaQuery.disableAnimations` (Reduce Motion) — non-optional.
-- **Permissions / platforms:** Android — no runtime permission for accel/gyro. iOS — Info.plist needs `NSMotionUsageDescription`; whether a Motion & Fitness prompt actually fires depends on which Core Motion APIs get touched (raw `CMMotionManager` is typically silent; activity/pedometer APIs prompt). Verify on device before shipping. Flutter Web on iOS Safari — explicit `DeviceOrientationEvent.requestPermission()` behind a tap-to-enable. Desktop — no sensors; graceful no-op fallback.
-- **Risk / cost:** ~half day. Keep motion subtle; overshoot reads as gimmicky. Battery cost is negligible at typical sample rates.
-- **Depends on:** Nothing.
+- **Priority:** Medium
+- **Why:** Today the only automated coverage is unit tests (`test/app_state_test.dart`) and a widget smoke test (`test/widget_smoke_test.dart`). Anything that depends on real engine rendering — per-line frosted strips, rainbow strikethrough timing, sparkle bursts, scroll/parallax behavior, drag-reorder inside the Overlay, line-height + spacing tweaks like the recent compaction pass — has to be eyeballed on a device every change. That's both a regression risk and a blocker for letting Claude self-verify UI work; widget tests can't see the things this app most cares about.
+- **Scope:** Add `integration_test` (Flutter SDK package) + a `test_driver/integration_test.dart` runner. Cover the golden paths first: create a list, add an item, edit it, toggle done (verify strikethrough renders), long-press → glitter / delete, reorder. Then add a small set of golden-image tests for the visually load-bearing surfaces (empty state, list with mixed done/glittered items, drag proxy in flight) — `matchesGoldenFile` against a pinned `Surface.android-x64` device profile. Wire `flutter test integration_test` into a CI lane, and document the manual `flutter drive --driver=test_driver/integration_test.dart --target=integration_test/<file>.dart -d emulator-5554` invocation in CLAUDE.md so Claude can run it during a session.
+- **Risk / cost:** ~1 day for the golden-path script suite, +half day for goldens (goldens are flaky across host GPUs / font hinting — usually ends up in a "Linux CI only" lane). Animations make exact-frame goldens brittle; pin `tester.pump(Duration)` calls explicitly and prefer end-state captures over mid-animation ones.
+- **Depends on:** Nothing — though it pairs naturally with any future CI setup.
 
 ---
 
@@ -40,18 +39,6 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# True wide-gamut / HDR for the bg image
-
-- **Status:** Parked — Flutter image pipeline limit
-- **Priority:** Low
-- **Why:** Saturation matrix on `DecorationImage.colorFilter` is the closest "HDR pop" we can do today in sRGB. Real wide-gamut paths in Flutter (Display P3 colors, HDR10/AVIF source) work for code-defined colors on iOS Impeller but are still patchy for image assets, especially on Android.
-- **Scope:** Convert bg PNGs to wide-gamut-tagged AVIF or HEIC; load via `ImageProvider` with explicit color space; verify iOS-Impeller, Android-Impeller, Skia fallback. Also write a `FragmentProgram` blur shader if we want full bake-free real-time blur.
-- **Risk / cost:** Days, with platform-specific landmines. Defer until Flutter's wide-gamut image story is documented and stable.
-- **Depends on:** Flutter / Impeller maturing on this front.
-
----
-
-<!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
 # Data persistence / Export / backup mechanism
 
 - **Status:** Candidate
@@ -60,3 +47,27 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 - **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
 - **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
 - **Depends on:** Nothing.
+
+---
+
+<!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
+# Tilt-driven parallax (iOS 7 lineage)
+
+- **Status:** Candidate
+- **Priority:** Low
+- **Why:** Layer on top of the scroll-driven background parallax — list items shift subtly relative to the background as the device tilts. Same visual lineage as iOS 7 home screen icons.
+- **Scope:** `sensors_plus` (or `motion_sensors` for fused attitude). Low-pass-filter accelerometer X/Y to extract the gravity vector, map to a small per-layer translation (a few px). Compose with the existing scroll parallax. Honor `MediaQuery.disableAnimations` (Reduce Motion) — non-optional.
+- **Permissions / platforms:** Android — no runtime permission for accel/gyro. iOS — Info.plist needs `NSMotionUsageDescription`; whether a Motion & Fitness prompt actually fires depends on which Core Motion APIs get touched (raw `CMMotionManager` is typically silent; activity/pedometer APIs prompt). Verify on device before shipping. Flutter Web on iOS Safari — explicit `DeviceOrientationEvent.requestPermission()` behind a tap-to-enable. Desktop — no sensors; graceful no-op fallback.
+- **Risk / cost:** ~half day. Keep motion subtle; overshoot reads as gimmicky. Battery cost is negligible at typical sample rates.
+- **Depends on:** Nothing.
+
+---
+
+# True wide-gamut / HDR for the bg image
+
+- **Status:** Parked — Flutter image pipeline limit
+- **Priority:** Low
+- **Why:** Saturation matrix on `DecorationImage.colorFilter` is the closest "HDR pop" we can do today in sRGB. Real wide-gamut paths in Flutter (Display P3 colors, HDR10/AVIF source) work for code-defined colors on iOS Impeller but are still patchy for image assets, especially on Android.
+- **Scope:** Convert bg PNGs to wide-gamut-tagged AVIF or HEIC; load via `ImageProvider` with explicit color space; verify iOS-Impeller, Android-Impeller, Skia fallback. Also write a `FragmentProgram` blur shader if we want full bake-free real-time blur.
+- **Risk / cost:** Days, with platform-specific landmines. Defer until Flutter's wide-gamut image story is documented and stable.
+- **Depends on:** Flutter / Impeller maturing on this front.
