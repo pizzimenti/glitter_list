@@ -36,9 +36,48 @@ jobs:
       - run: flutter test
 
   integration:
-    name: Integration tests (Android emulator)
+    name: Integration tests (${{ matrix.suite }} / ${{ matrix.mode }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # One emulator per (test-suite, brightness) cell. Wider split
+      # than just per-mode — the May 2026 SDK / system-image drift
+      # made the runner emulator far less stable: it now dies after
+      # ~7 apk install cycles, which is fewer than items_test +
+      # lists_test + goldens combined (13 tests). Splitting by suite
+      # caps each emulator's workload at ≤6 tests, well within the
+      # observed stability window.
+      # `night` matches the literal expected by `cmd uimode night`;
+      # `path` is the test target. Listed exhaustively (rather than
+      # using a cross product + include merges) so all six entries
+      # are unambiguous on read.
+      matrix:
+        include:
+          - mode: light
+            suite: items
+            night: "no"
+            path: integration_test/items_test.dart
+          - mode: light
+            suite: lists
+            night: "no"
+            path: integration_test/lists_test.dart
+          - mode: light
+            suite: goldens
+            night: "no"
+            path: integration_test/goldens/
+          - mode: dark
+            suite: items
+            night: "yes"
+            path: integration_test/items_test.dart
+          - mode: dark
+            suite: lists
+            night: "yes"
+            path: integration_test/lists_test.dart
+          - mode: dark
+            suite: goldens
+            night: "yes"
+            path: integration_test/goldens/
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
@@ -59,28 +98,24 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Run integration tests on emulator (light + dark)
+      - name: Run integration tests on emulator (${{ matrix.mode }})
         uses: reactivecircus/android-emulator-runner@70f4dee990796918b78d040e3278474bdbd348a7 # v2
         with:
           api-level: 34
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          # NOTE: each line below runs as a separate `sh -c` invocation,
+          # so multi-line shell constructs (if/then/else/fi, for-loops,
+          # heredocs) silently break. Keep every line a self-contained
+          # command. Matrix-dependent values come from `${{ matrix.* }}`
+          # at workflow-eval time, not from runtime shell branching.
           script: |
             set -e
-            echo "=== Integration pass 1: light mode ==="
-            adb shell "cmd uimode night no"
-            sleep 2  # let the config-change broadcast propagate
-            flutter test integration_test/
-
-            echo "=== Integration pass 2: dark mode ==="
-            adb shell "cmd uimode night yes"
+            adb shell "cmd uimode night ${{ matrix.night }}"
             sleep 2
-            flutter test integration_test/
-
-            echo "=== Restoring light mode ==="
-            adb shell "cmd uimode night no"
-      - name: Upload golden failures
+            ./tool/ci_flutter_test.sh ${{ matrix.path }}
+      - name: Upload golden failures (${{ matrix.mode }})
         # Runs only if a previous step failed, AND only when a failures
         # dir exists (matchesGoldenFile writes the actual-rendered PNG
         # there on a pixel mismatch). Uploaded as a workflow artifact so
@@ -89,6 +124,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: golden-failures
+          name: golden-failures-${{ matrix.suite }}-${{ matrix.mode }}
           path: '**/failures/*.png'
           if-no-files-found: ignore
