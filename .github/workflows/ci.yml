@@ -18,6 +18,11 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
+          # Pin the SDK version exactly. `channel: stable` floats and
+          # caused the May 2026 drift cycle (1080×2400 → 1080×2337
+          # capture-area regression). Bump intentionally with a known
+          # PR boundary; do not let stable-channel updates in unattended.
+          flutter-version: 3.41.9
           channel: stable
           cache: true
       - run: flutter pub get
@@ -30,6 +35,11 @@ jobs:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
+          # Pin the SDK version exactly. `channel: stable` floats and
+          # caused the May 2026 drift cycle (1080×2400 → 1080×2337
+          # capture-area regression). Bump intentionally with a known
+          # PR boundary; do not let stable-channel updates in unattended.
+          flutter-version: 3.41.9
           channel: stable
           cache: true
       - run: flutter pub get
@@ -86,6 +96,11 @@ jobs:
           java-version: '17'
       - uses: subosito/flutter-action@1a449444c387b1966244ae4d4f8c696479add0b2 # v2
         with:
+          # Pin the SDK version exactly. `channel: stable` floats and
+          # caused the May 2026 drift cycle (1080×2400 → 1080×2337
+          # capture-area regression). Bump intentionally with a known
+          # PR boundary; do not let stable-channel updates in unattended.
+          flutter-version: 3.41.9
           channel: stable
           cache: true
       - run: flutter pub get
