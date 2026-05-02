@@ -203,8 +203,9 @@ piece below is load-bearing:
   swallows post-test cleanup noise (`PathNotFoundException` on
   `/tmp/flutter_tools.*`, `adb uninstall failed`) which fires
   on a successful goldens run. Real test failures still
-  propagate (it greps for `Test failed` / `Some tests failed` /
-  `FAIL ` and honors them). Do not bypass.
+  propagate (it greps for `Test failed`, `Some tests failed`,
+  and a `FAIL` prefix at line start, and honors them). Do not
+  bypass.
 - **`integration_test/flutter_test_config.dart` installs a
   tolerant `LocalFileComparator`.** ≤0.01% pixel diff is
   treated as pass. GPU / font / decoder run-to-run noise
