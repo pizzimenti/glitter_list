@@ -2,7 +2,7 @@
 
 A scratchpad of candidate work for Glitter List. **Not a commitment.** Items get added, reordered, shipped, or dropped without ceremony — priority shifts as the project does. When something ships, delete its entry; `CHANGELOG.md` and git history are the archive.
 
-Order is loose; priority is the signal, not position.
+Position is the source of truth — the topmost entry is "next." Priority is a separate gut-feel signal about value, not ordering.
 
 Each entry uses these fields:
 
@@ -17,9 +17,20 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# UI cycle: tilt parallax → multi-depth frosted overlays → HDR sparkle dust
+# Data persistence / Export / backup mechanism
 
 - **Status:** Next-up
+- **Priority:** Medium
+- **Why:** Today, every list lives in the Hive box on the device. A reinstall, a lost phone, or a "send my groceries to my partner" moment all fall off the cliff. We need both a backup story (so reinstalls survive) and a share story (so a list can move out of the app).
+- **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
+- **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
+- **Depends on:** Nothing.
+
+---
+
+# UI cycle: tilt parallax → multi-depth frosted overlays → HDR sparkle dust
+
+- **Status:** Candidate
 - **Priority:** High
 - **Why:** The app's identity is "glittery." Today's scroll-driven bg parallax is the floor of that vision; device-tilt parallax, multi-depth frosted overlays, and HDR-bright sparkle dust are the ceiling. The three phases compose into one design — shipping any in isolation under-delivers the look. Each phase is a separate PR; the cycle isn't "done" until all three land.
 
@@ -56,15 +67,4 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Data persistence / Export / backup mechanism
-
-- **Status:** Candidate
-- **Priority:** Medium
-- **Why:** Today, every list lives in the Hive box on the device. A reinstall, a lost phone, or a "send my groceries to my partner" moment all fall off the cliff. We need both a backup story (so reinstalls survive) and a share story (so a list can move out of the app).
-- **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
-- **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
-- **Depends on:** Nothing.
-
----
-
-<!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
+<!-- Add new entries below. Position is the source of truth — top = next. When an entry ships, delete it. -->
