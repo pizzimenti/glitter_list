@@ -36,9 +36,19 @@ jobs:
       - run: flutter test
 
   integration:
-    name: Integration tests (Android emulator)
+    name: Integration tests (${{ matrix.mode }})
     runs-on: ubuntu-24.04
     timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      # One emulator per brightness — splitting prevents the
+      # emulator-exhaustion crashes seen when one job ran light + dark
+      # back-to-back (the shared emulator died after ~5 apk
+      # rebuild/install cycles, which is exactly one full goldens pass).
+      matrix:
+        mode:
+          - light
+          - dark
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
@@ -59,7 +69,7 @@ jobs:
             | sudo tee /etc/udev/rules.d/99-kvm4all.rules
           sudo udevadm control --reload-rules
           sudo udevadm trigger --name-match=kvm
-      - name: Run integration tests on emulator (light + dark)
+      - name: Run integration tests on emulator (${{ matrix.mode }})
         uses: reactivecircus/android-emulator-runner@70f4dee990796918b78d040e3278474bdbd348a7 # v2
         with:
           api-level: 34
@@ -68,45 +78,33 @@ jobs:
           profile: pixel_6
           script: |
             set -e
-            # TEMPORARY: regenerate goldens against the current runner.
-            # The May 2026 Flutter / system-image bump shifted the
-            # FlutterView's captured area from 1080x2400 to 1080x2337
-            # (lost the bottom nav-bar inset), and the previous PR
-            # merged with these failing. Capture fresh baselines once
-            # here, then revert this block in the next commit.
-            echo "=== Regen pass: light mode (--update-goldens) ==="
-            adb shell "cmd uimode night no"
+            # TEMPORARY: regenerate goldens against the current runner
+            # for ${{ matrix.mode }} mode. The May 2026 Flutter / system
+            # image bump shifted the FlutterView's captured area from
+            # 1080x2400 to 1080x2337 (lost the bottom nav-bar inset).
+            # After dark goldens are committed back, drop the
+            # `--update-goldens` flag.
+            if [ "${{ matrix.mode }}" = "light" ]; then
+              adb shell "cmd uimode night no"
+            else
+              adb shell "cmd uimode night yes"
+            fi
             sleep 2
+            echo "=== Regen pass (--update-goldens): ${{ matrix.mode }} ==="
             flutter test integration_test/goldens/ --update-goldens
-
-            echo "=== Regen pass: dark mode (--update-goldens) ==="
-            adb shell "cmd uimode night yes"
-            sleep 2
-            flutter test integration_test/goldens/ --update-goldens
-
-            echo "=== Verification pass 1: light mode ==="
-            adb shell "cmd uimode night no"
-            sleep 2
+            echo "=== Verification pass: ${{ matrix.mode }} ==="
             flutter test integration_test/
-
-            echo "=== Verification pass 2: dark mode ==="
-            adb shell "cmd uimode night yes"
-            sleep 2
-            flutter test integration_test/
-
-            echo "=== Restoring light mode ==="
-            adb shell "cmd uimode night no"
-      - name: Upload regenerated goldens
+      - name: Upload regenerated goldens (${{ matrix.mode }})
         # TEMPORARY (paired with the --update-goldens block above):
         # surface the freshly captured PNGs as an artifact so they
         # can be downloaded and committed back to the repo.
         if: always()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: regenerated-goldens
+          name: regenerated-goldens-${{ matrix.mode }}
           path: integration_test/goldens/goldens/*.png
           if-no-files-found: error
-      - name: Upload golden failures
+      - name: Upload golden failures (${{ matrix.mode }})
         # Runs only if a previous step failed, AND only when a failures
         # dir exists (matchesGoldenFile writes the actual-rendered PNG
         # there on a pixel mismatch). Uploaded as a workflow artifact so
@@ -115,6 +113,6 @@ jobs:
         if: failure()
         uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
         with:
-          name: golden-failures
+          name: golden-failures-${{ matrix.mode }}
           path: '**/failures/*.png'
           if-no-files-found: ignore
