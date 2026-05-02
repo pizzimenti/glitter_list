@@ -43,3 +43,7 @@ app.*.map.json
 /android/app/debug
 /android/app/profile
 /android/app/release
+
+# matchesGoldenFile dumps actual-rendered PNGs here on a pixel mismatch.
+# Local-dev debris; never commit.
+integration_test/goldens/failures/
