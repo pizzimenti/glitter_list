@@ -45,10 +45,13 @@ jobs:
       # emulator-exhaustion crashes seen when one job ran light + dark
       # back-to-back (the shared emulator died after ~5 apk
       # rebuild/install cycles, which is exactly one full goldens pass).
+      # `night` matches the literal expected by `cmd uimode night`.
       matrix:
-        mode:
-          - light
-          - dark
+        include:
+          - mode: light
+            night: "no"
+          - mode: dark
+            night: "yes"
     steps:
       - uses: actions/checkout@34e114876b0b11c390a56381ad16ebd13914f8d5 # v4
       - uses: actions/setup-java@c1e323688fd81a25caa38c78aa6df2d33d3e20d9 # v4
@@ -76,23 +79,16 @@ jobs:
           target: google_apis
           arch: x86_64
           profile: pixel_6
+          # NOTE: each line below runs as a separate `sh -c` invocation,
+          # so multi-line shell constructs (if/then/else/fi, for-loops,
+          # heredocs) silently break. Keep every line a self-contained
+          # command. Matrix-dependent values come from `${{ matrix.* }}`
+          # at workflow-eval time, not from runtime shell branching.
           script: |
             set -e
-            # TEMPORARY: regenerate goldens against the current runner
-            # for ${{ matrix.mode }} mode. The May 2026 Flutter / system
-            # image bump shifted the FlutterView's captured area from
-            # 1080x2400 to 1080x2337 (lost the bottom nav-bar inset).
-            # After dark goldens are committed back, drop the
-            # `--update-goldens` flag.
-            if [ "${{ matrix.mode }}" = "light" ]; then
-              adb shell "cmd uimode night no"
-            else
-              adb shell "cmd uimode night yes"
-            fi
+            adb shell "cmd uimode night ${{ matrix.night }}"
             sleep 2
-            echo "=== Regen pass (--update-goldens): ${{ matrix.mode }} ==="
             flutter test integration_test/goldens/ --update-goldens
-            echo "=== Verification pass: ${{ matrix.mode }} ==="
             flutter test integration_test/
       - name: Upload regenerated goldens (${{ matrix.mode }})
         # TEMPORARY (paired with the --update-goldens block above):
