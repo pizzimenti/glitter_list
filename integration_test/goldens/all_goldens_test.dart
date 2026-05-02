@@ -1,5 +1,6 @@
 import 'package:flutter_test/flutter_test.dart';
 import 'package:glitter_list/main.dart';
+import 'package:glitter_list/state/app_state.dart';
 import 'package:integration_test/integration_test.dart';
 
 import '../../test/helpers/test_harness.dart';
@@ -99,5 +100,24 @@ void main() {
       find.byType(GlitterListApp),
       matchesGoldenFile('goldens/list_mixed_${brightness.name}.png'),
     );
+  });
+
+  // Trailing no-op test. The post-May-2026 CI emulator + flutter_test
+  // reporter combo hits a race where the genuinely-last test's pass
+  // result doesn't reconcile into the final "🎉 N tests passed"
+  // summary, even though the test itself prints its ✅ and the
+  // comparator approved its golden. Symptoms: counter is
+  // off-by-one and the job exits 1. Putting a cheap, fast,
+  // pixel-comparison-free test in the trailing slot lets the slow
+  // golden tests above it close cleanly while this one is the one
+  // whose tail-end reconciliation gets lost. Cost: ~1 second of
+  // wall-clock per pass. Remove if the underlying flutter_test
+  // reporter behavior is fixed.
+  testWidgets('trailing reconciliation no-op', (tester) async {
+    await pumpAppWith(
+      tester,
+      initial: const AppState(lists: [], currentListIndex: 0),
+    );
+    expect(find.byType(GlitterListApp), findsOneWidget);
   });
 }
