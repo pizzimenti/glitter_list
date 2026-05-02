@@ -88,18 +88,7 @@ jobs:
             set -e
             adb shell "cmd uimode night ${{ matrix.night }}"
             sleep 2
-            flutter test integration_test/goldens/ --update-goldens
             flutter test integration_test/
-      - name: Upload regenerated goldens (${{ matrix.mode }})
-        # TEMPORARY (paired with the --update-goldens block above):
-        # surface the freshly captured PNGs as an artifact so they
-        # can be downloaded and committed back to the repo.
-        if: always()
-        uses: actions/upload-artifact@ea165f8d65b6e75b540449e92b4886f43607fa02 # v4
-        with:
-          name: regenerated-goldens-${{ matrix.mode }}
-          path: integration_test/goldens/goldens/*.png
-          if-no-files-found: error
       - name: Upload golden failures (${{ matrix.mode }})
         # Runs only if a previous step failed, AND only when a failures
         # dir exists (matchesGoldenFile writes the actual-rendered PNG
