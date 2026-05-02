@@ -114,7 +114,7 @@ jobs:
             set -e
             adb shell "cmd uimode night ${{ matrix.night }}"
             sleep 2
-            flutter test ${{ matrix.path }}
+            ./tool/ci_flutter_test.sh ${{ matrix.path }}
       - name: Upload golden failures (${{ matrix.mode }})
         # Runs only if a previous step failed, AND only when a failures
         # dir exists (matchesGoldenFile writes the actual-rendered PNG
