@@ -172,19 +172,73 @@ so every launch is a clean slate seeded from `Scenarios`.
 
 ## CI
 
-`.github/workflows/ci.yml` runs three jobs in parallel on `push` to
+`.github/workflows/ci.yml` runs the following on `push` to
 `main` and on every `pull_request`:
 
 - `Analyze` — `flutter analyze`
 - `Unit + widget tests` — `flutter test`
-- `Integration tests (Android emulator)` — boots an Android API 34
-  emulator via `reactivecircus/android-emulator-runner@v2` and runs
-  `flutter test integration_test/`. ~10 min total per run; cancels
-  in-flight runs when a new commit lands.
+- `Integration tests (<suite> / <mode>)` — a 6-entry matrix
+  (`{items, lists, goldens} × {light, dark}`). Each entry boots
+  its own Android API 34 emulator via
+  `reactivecircus/android-emulator-runner@v2`, flips system dark
+  mode (`adb shell cmd uimode night yes/no`), and runs the one
+  test file for that suite via `tool/ci_flutter_test.sh`.
 
 If the integration job fails locally but passes in CI (or vice
 versa), it's almost always animation timing or device pixel ratio.
 Re-pin the timed pumps before assuming a logic bug.
+
+### CI gotchas — read before changing the integration lane
+
+The CI pipeline's current shape exists because of a stack of
+real, demonstrated runner / SDK / framework fragilities. Each
+piece below is load-bearing:
+
+- **The 6-entry matrix.** Do **NOT** collapse back to one job
+  per brightness. The runner's emulator dies after ~7 apk
+  install/uninstall cycles, and combined items + lists +
+  goldens (~13 tests) overflows that ceiling. The matrix split
+  caps each emulator at the test count of one suite.
+- **`tool/ci_flutter_test.sh` wraps `flutter test`.** It
+  swallows post-test cleanup noise (`PathNotFoundException` on
+  `/tmp/flutter_tools.*`, `adb uninstall failed`) which fires
+  on a successful goldens run. Real test failures still
+  propagate (it greps for `Test failed`, `Some tests failed`,
+  and a `FAIL` prefix at line start, and honors them). Do not
+  bypass.
+- **`integration_test/flutter_test_config.dart` installs a
+  tolerant `LocalFileComparator`.** ≤0.01% pixel diff is
+  treated as pass. GPU / font / decoder run-to-run noise
+  routinely produces 1–3 px diffs on identical renders;
+  pixel-exact comparison would flag them as failures.
+- **Goldens are consolidated** into one
+  `integration_test/goldens/all_goldens_test.dart` with five
+  `testWidgets` calls. **Do not add new `*_test.dart` files to
+  `integration_test/goldens/`** — each new file forces a fresh
+  apk install/uninstall, and 5+ cycles per emulator overflows
+  the ceiling. New golden surfaces add a `testWidgets` to the
+  consolidated file.
+- **`subosito/flutter-action@v2` uses `channel: stable`.** That
+  channel floats; a stable-channel update was the proximate
+  cause of the May 2026 drift that required this whole pipeline
+  reshape. If drift recurs, the right structural fix is to pin
+  `flutter-version: <x.y.z>` in the workflow rather than
+  chasing the drift downstream.
+
+### When CI fails on a PR
+
+Before deep-diving into how your diff might have caused it:
+
+1. `gh run list --branch main --workflow ci.yml --limit 5` —
+   does `main` show the same failure? Two PRs have already
+   merged over their own failing CI here; "merged" ≠ "had
+   passing CI."
+2. If `main` is also failing on the same job, the diff is
+   inherited-innocent. Open a separate fix PR off `main` for
+   the runner-drift issue and rebase the feature branch on
+   top once it lands.
+3. Only after `main` is verified clean should you consider
+   diff-caused failures.
 
 ## Files Claude tends to touch
 

@@ -4,6 +4,25 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.6.1] - 2026-05-01
+
+### Added
+
+- None.
+
+### Changed
+
+- **Hoisted `BgParallaxScope` above `MaterialApp`.** The scope now lives inside a new `BgParallaxHost` (a `ConsumerStatefulWidget` wrapping `MaterialApp` inside `GlitterListApp`), so anything reparented into Navigator's root `Overlay` — `showDialog` routes, `PopupMenuButton` surfaces, `ReorderableListView`'s drag proxy — can read the live parallax `alignment` + repaint `listenable`. Before, those overlay-routed widgets fell back to `Alignment.center` for any per-line frosted strip and went stale until the gesture ended. The `proxyDecorator` band-aid in `ListPage.build` that re-published the scope inside the drag-reorder overlay is retired (the hoist makes it redundant). A new sibling `BgParallaxControls` inherited widget exposes the `PageController`, vertical-scroll `ValueNotifier`, and merged `bgListenable` to `HomePage`'s `PageView` and `NotificationListener`. All three references are stable for the host's lifetime, so `HomePage` does not rebuild on every parallax tick — the bg-layer `AnimatedBuilder` reads the alignment from `BgParallaxScope` inside its builder so only the bg subtree depends on per-tick updates. Pure refactor — no user-visible change. Sets up the upcoming frosted-glass pop-up menus (and the iOS 7 multi-layer tilt parallax that will compose on top) to read parallax state directly.
+- **Deduplicated bg image visual constants.** The asymmetric parallax scale `(1.48, 1.39)` and the `s=1.3` saturation matrix used to live both inline in `home_page.dart` and as private constants in `baked_bg.dart`. Both are now public constants in `baked_bg.dart` (`bgParallaxScale`, `bgSaturationFilter`) and `home_page.dart` references them. Drift between the two paths would misalign each per-line frosted strip tonally and geometrically vs. the surrounding sharp bg.
+
+### Fixed
+
+- None.
+
+### Notes
+
+- A new widget test (`test/bg_parallax_reachable_test.dart`) guards the hoist: it pumps the app, opens a `showDialog` route, and asserts `BgParallaxScope.maybeOf(dialogContext)` is non-null. If a future refactor re-nests the scope below the root `Overlay`, this test fails before any frosted-glass overlay surface ships visibly broken. One dialog test covers the popup-menu path too — both reparent into the same Navigator overlay.
+
 ## [0.6.0] - 2026-05-01
 
 ### Added

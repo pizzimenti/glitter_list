@@ -3,7 +3,6 @@ import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../models/todo_list.dart';
 import '../state/app_state.dart';
-import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'per_line_backdrop_blur.dart';
 import 'todo_tile.dart';
@@ -72,13 +71,6 @@ class _ListPageState extends ConsumerState<ListPage> {
       );
     }
     final notifier = ref.read(appStateProvider.notifier);
-    // Capture the parallax scope here so the proxyDecorator below can
-    // re-publish it inside the OverlayEntry that ReorderableListView
-    // uses to host the dragged-tile proxy. The Overlay sits above
-    // BgParallaxScope (which lives inside HomePage), so without this
-    // re-wrap the dragged tile's per-line strips fall back to
-    // Alignment.center and stop repainting until the gesture ends.
-    final parallax = BgParallaxScope.maybeOf(context);
     return SafeArea(
       top: false, // AppBar already handles the top inset.
       child: Stack(
@@ -97,11 +89,11 @@ class _ListPageState extends ConsumerState<ListPage> {
             // so we have to re-establish Material here ourselves —
             // otherwise dragging throws "No Material widget found"
             // because the OverlayEntry that hosts the proxy sits above
-            // every Scaffold/Material in the tree.
+            // every Scaffold/Material in the tree. Parallax state, on
+            // the other hand, is now reachable from inside the overlay
+            // because BgParallaxHost (and BgParallaxScope) sit above
+            // MaterialApp, so no re-publish is needed here.
             proxyDecorator: (child, index, animation) {
-              final wrapped = parallax == null
-                  ? child
-                  : BgParallaxScope(parallax: parallax, child: child);
               return AnimatedBuilder(
                 animation: animation,
                 builder: (context, c) {
@@ -113,7 +105,7 @@ class _ListPageState extends ConsumerState<ListPage> {
                     child: c,
                   );
                 },
-                child: wrapped,
+                child: child,
               );
             },
             itemBuilder: (ctx, i) {
