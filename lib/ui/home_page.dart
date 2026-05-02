@@ -91,21 +91,24 @@ class _HomePageState extends ConsumerState<HomePage> {
             ColoredBox(color: surface),
             ClipRect(
               child: Transform(
-                transform: Matrix4.diagonal3Values(1.48, 1.39, 1),
+                // Scale + saturation matrix come from `baked_bg.dart`
+                // so the live bg layer here and the pre-baked image
+                // sampled by per-line frosted strips read the SAME
+                // numbers. Drift between the two would misalign each
+                // strip tonally and geometrically vs. the surrounding
+                // sharp bg.
+                transform: Matrix4.diagonal3Values(
+                  bgParallaxScale.width,
+                  bgParallaxScale.height,
+                  1,
+                ),
                 alignment: alignment,
                 child: DecoratedBox(
                   decoration: BoxDecoration(
                     image: DecorationImage(
                       image: AssetImage(bgAsset),
                       fit: BoxFit.cover,
-                      // Saturation matrix, s=1.3, Rec. 709 weights:
-                      // sr = (1-s)*0.2126, sg = (1-s)*0.7152, sb = (1-s)*0.0722.
-                      colorFilter: const ColorFilter.matrix(<double>[
-                        1.23622, -0.21456, -0.02166, 0, 0,
-                        -0.06378, 1.08544, -0.02166, 0, 0,
-                        -0.06378, -0.21456, 1.27834, 0, 0,
-                        0, 0, 0, 1, 0,
-                      ]),
+                      colorFilter: bgSaturationFilter,
                     ),
                   ),
                 ),

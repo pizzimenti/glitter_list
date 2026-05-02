@@ -52,11 +52,12 @@ class BakedBg {
   }
 }
 
-/// Saturation matrix used by the live bg layer's `DecorationImage`
-/// (`s = 1.3` Rec. 709). Re-applied here so the bake matches the live
-/// bg pixel-for-pixel in tone — strips composite seamlessly into the
-/// surrounding sharp bg.
-const ColorFilter _saturationFilter = ColorFilter.matrix(<double>[
+/// Saturation matrix applied to the bg image (`s = 1.3` Rec. 709)
+/// — boosts the "HDR-pop" feel of the bg in sRGB. Public because
+/// the live bg layer in `home_page.dart` and the bake here MUST
+/// apply the identical filter; otherwise per-line frosted strips
+/// composite tonally off vs. the surrounding sharp bg.
+const ColorFilter bgSaturationFilter = ColorFilter.matrix(<double>[
   1.23622, -0.21456, -0.02166, 0, 0,
   -0.06378, 1.08544, -0.02166, 0, 0,
   -0.06378, -0.21456, 1.27834, 0, 0,
@@ -67,10 +68,14 @@ const ColorFilter _saturationFilter = ColorFilter.matrix(<double>[
 /// screen pixels. Same value the prior `BackdropFilter` chain used.
 const double _effectiveBlurSigma = 8;
 
-/// Parallax oversize factor — must match the Transform applied to the
-/// live bg layer in `home_page.dart` so the bake covers exactly the
-/// same scaled-image region the live bg renders.
-const Size _parallaxScale = Size(1.48, 1.39);
+/// Parallax oversize factor — the live bg layer wraps its
+/// `DecorationImage` in
+/// `Transform(Matrix4.diagonal3Values(width, height, 1), alignment:
+/// alignment, ...)` and the bake renders at the matching scaled
+/// size so strips can sample any alignment. Public so both paint
+/// paths read the same numbers; if these drift, strip sampling
+/// will diverge from the live bg.
+const Size bgParallaxScale = Size(1.48, 1.39);
 
 /// Reduce the bake's pixel resolution to keep `ui.Image` memory in
 /// check. The content is heavily blurred; bilinear upscale during
@@ -83,8 +88,8 @@ Future<BakedBg> _bake({
   required Size viewportSize,
 }) async {
   final scaledLogicalSize = Size(
-    viewportSize.width * _parallaxScale.width,
-    viewportSize.height * _parallaxScale.height,
+    viewportSize.width * bgParallaxScale.width,
+    viewportSize.height * bgParallaxScale.height,
   );
   final bakedPixelSize = Size(
     scaledLogicalSize.width * _bakePixelRatio,
@@ -143,7 +148,7 @@ Future<BakedBg> _bake({
     );
     canvas.saveLayer(
       dstRect,
-      Paint()..colorFilter = _saturationFilter,
+      Paint()..colorFilter = bgSaturationFilter,
     );
     canvas.drawImageRect(source, srcRect, dstRect, Paint());
     canvas.restore();
@@ -157,7 +162,7 @@ Future<BakedBg> _bake({
       return BakedBg(
         image: image,
         viewportSize: viewportSize,
-        scaleFactor: _parallaxScale,
+        scaleFactor: bgParallaxScale,
         pixelRatio: _bakePixelRatio,
       );
     } finally {
