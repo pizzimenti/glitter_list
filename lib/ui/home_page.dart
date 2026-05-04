@@ -553,6 +553,7 @@ class _PageDots extends ConsumerWidget {
         .watch(bakedBgProvider(
             BakedBgKey(brightness: brightness, size: viewportSize)))
         .value;
+    final fallback = preBakedBackdropFallback(Theme.of(context));
     final dots = Padding(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 4),
       child: Row(
@@ -572,12 +573,16 @@ class _PageDots extends ConsumerWidget {
         }),
       ),
     );
-    if (baked == null) return dots;
     return Stack(
       fit: StackFit.passthrough,
       children: [
         Positioned.fill(
-          child: ClipRect(child: PreBakedBackdrop(baked: baked)),
+          child: ClipRect(
+            child: PreBakedBackdrop(
+              baked: baked,
+              fallbackColor: fallback,
+            ),
+          ),
         ),
         dots,
       ],

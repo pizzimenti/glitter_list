@@ -77,6 +77,7 @@ class PerLineBackdropBlur extends ConsumerWidget {
         BakedBgKey(brightness: brightness, size: viewportSize),
       ),
     );
+    final fallback = preBakedBackdropFallback(Theme.of(context));
 
     return LayoutBuilder(
       builder: (context, constraints) {
@@ -137,22 +138,22 @@ class PerLineBackdropBlur extends ConsumerWidget {
           child: Stack(
             clipBehavior: Clip.none,
             children: [
-              if (baked != null)
-                for (final line in lines)
-                  Positioned(
-                    left: line.metrics.left - backdropOutset.left,
-                    top: line.metrics.baseline -
-                        line.metrics.ascent -
-                        backdropOutset.top,
-                    width:
-                        line.metrics.width + backdropOutset.horizontal,
-                    height:
-                        line.metrics.height + backdropOutset.vertical,
-                    child: ClipRRect(
-                      borderRadius: borderRadius,
-                      child: PreBakedBackdrop(baked: baked),
+              for (final line in lines)
+                Positioned(
+                  left: line.metrics.left - backdropOutset.left,
+                  top: line.metrics.baseline -
+                      line.metrics.ascent -
+                      backdropOutset.top,
+                  width: line.metrics.width + backdropOutset.horizontal,
+                  height: line.metrics.height + backdropOutset.vertical,
+                  child: ClipRRect(
+                    borderRadius: borderRadius,
+                    child: PreBakedBackdrop(
+                      baked: baked,
+                      fallbackColor: fallback,
                     ),
                   ),
+                ),
               if (betweenLayerBuilder != null)
                 Positioned.fill(
                   child: betweenLayerBuilder!(

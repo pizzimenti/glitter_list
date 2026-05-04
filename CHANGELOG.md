@@ -4,6 +4,17 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.6.3] - 2026-05-04
+
+### Changed
+
+- **Pre-bake fallback slab.** `PreBakedBackdrop` (`lib/ui/pre_baked_backdrop.dart`) now accepts a nullable `BakedBg?` plus a required `fallbackColor`. While the bake is in flight on the root isolate (PNG decode + saturation + blur + `picture.toImage` readback — the visible cause of "frosted strips pop in late after first paint" on cold launch), every per-line strip / page-dot / checkbox slab paints a flat translucent fill through the same vertical feather mask the bake uses. The silhouette is identical, so the flat→glittery swap-in stays in place rather than emerging from nothing. Fallback color is theme-derived (`preBakedBackdropFallback(ThemeData)`) — milky pink in light mode, purple-magenta in dark — picked to land near the bake's average tone so the swap is barely perceptible. Three call sites updated to drop their `if (baked == null)` skip-render branches and pass through unconditionally: `PerLineBackdropBlur`, `_PageDots` (`home_page.dart`), `GlowingCheckbox` (`check_animation.dart`).
+- **Parallax listener gated on bake availability.** The `_RenderPreBakedBackdrop` skips subscribing to `BgParallaxScope`'s listenable while `baked == null`, since the flat fallback doesn't sample the bake and doesn't need to repaint on scroll. Cuts unnecessary repaints during the loading window.
+
+### Notes
+
+- This is the first half of the future.md "Bake off the main thread on first frame" entry — the perceived-first-paint angle. The literal "move the bake to a background isolate" angle (the other half of that entry) is deferred: `picture.toImage` requires the engine's rasterizer and can't run in a Dart isolate, so a pure-isolate path would only attack PNG decode, not blur. Re-evaluate when telemetry shows decode dominates.
+
 ## [0.6.2] - 2026-05-04
 
 ### Added

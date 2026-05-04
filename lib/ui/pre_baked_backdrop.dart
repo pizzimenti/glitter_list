@@ -1,5 +1,6 @@
 import 'dart:ui' as ui;
 
+import 'package:flutter/material.dart' show ThemeData;
 import 'package:flutter/rendering.dart' show PipelineOwner;
 import 'package:flutter/widgets.dart';
 
@@ -15,17 +16,38 @@ import 'baked_bg.dart';
 /// cache staleness that otherwise pinned each strip to the screen
 /// position it had at first paint (visible as "some items blurred,
 /// some not" after a page swipe).
+///
+/// While [baked] is null (the bake's first-frame loading window — PNG
+/// decode + saturation + blur + `picture.toImage` readback all run on
+/// the root isolate and the per-line strips would otherwise pop in
+/// late), this paints a flat [fallbackColor] through the same feather
+/// mask. The silhouette matches the eventual bake's silhouette, so the
+/// flat→glittery swap-in stays in place rather than emerging from
+/// nothing.
 class PreBakedBackdrop extends StatelessWidget {
-  const PreBakedBackdrop({super.key, required this.baked});
+  const PreBakedBackdrop({
+    super.key,
+    required this.baked,
+    required this.fallbackColor,
+  });
 
-  final BakedBg baked;
+  final BakedBg? baked;
+
+  /// Painted as a flat slab through the feather mask whenever [baked] is
+  /// null. Call sites pass a theme-derived translucent surface tint so
+  /// the slab reads as plausible frosting until the real bake lands.
+  final Color fallbackColor;
 
   @override
   Widget build(BuildContext context) {
     final parallax = BgParallaxScope.maybeOf(context);
     return _PreBakedBackdropRender(
       baked: baked,
-      listenable: parallax?.listenable,
+      fallbackColor: fallbackColor,
+      // No need to repaint the flat fallback on parallax ticks — it
+      // doesn't sample the bake. Listener only attached once the real
+      // bake arrives.
+      listenable: baked == null ? null : parallax?.listenable,
       alignment: parallax?.alignment ?? Alignment.center,
     );
   }
@@ -34,11 +56,13 @@ class PreBakedBackdrop extends StatelessWidget {
 class _PreBakedBackdropRender extends LeafRenderObjectWidget {
   const _PreBakedBackdropRender({
     required this.baked,
+    required this.fallbackColor,
     required this.listenable,
     required this.alignment,
   });
 
-  final BakedBg baked;
+  final BakedBg? baked;
+  final Color fallbackColor;
   final Listenable? listenable;
   final Alignment alignment;
 
@@ -46,6 +70,7 @@ class _PreBakedBackdropRender extends LeafRenderObjectWidget {
   RenderObject createRenderObject(BuildContext context) {
     return _RenderPreBakedBackdrop(
       baked: baked,
+      fallbackColor: fallbackColor,
       listenable: listenable,
       alignment: alignment,
     );
@@ -55,6 +80,7 @@ class _PreBakedBackdropRender extends LeafRenderObjectWidget {
   void updateRenderObject(BuildContext context, RenderObject renderObject) {
     (renderObject as _RenderPreBakedBackdrop)
       ..baked = baked
+      ..fallbackColor = fallbackColor
       ..listenable = listenable
       ..alignment = alignment;
   }
@@ -62,17 +88,26 @@ class _PreBakedBackdropRender extends LeafRenderObjectWidget {
 
 class _RenderPreBakedBackdrop extends RenderBox {
   _RenderPreBakedBackdrop({
-    required BakedBg baked,
+    required BakedBg? baked,
+    required Color fallbackColor,
     required Listenable? listenable,
     required Alignment alignment,
   })  : _baked = baked,
+        _fallbackColor = fallbackColor,
         _listenable = listenable,
         _alignment = alignment;
 
-  BakedBg _baked;
-  set baked(BakedBg value) {
+  BakedBg? _baked;
+  set baked(BakedBg? value) {
     if (identical(value, _baked)) return;
     _baked = value;
+    markNeedsPaint();
+  }
+
+  Color _fallbackColor;
+  set fallbackColor(Color value) {
+    if (value == _fallbackColor) return;
+    _fallbackColor = value;
     markNeedsPaint();
   }
 
@@ -113,11 +148,35 @@ class _RenderPreBakedBackdrop extends RenderBox {
   void paint(PaintingContext context, Offset offset) {
     if (size.isEmpty) return;
 
+    final dst = Rect.fromLTWH(
+      offset.dx,
+      offset.dy,
+      size.width,
+      size.height,
+    );
+
+    // Save a layer so the radial alpha mask below composites against
+    // the freshly-drawn image only — not against whatever was painted
+    // into the parent canvas before us.
+    context.canvas.saveLayer(dst, Paint());
+
+    final baked = _baked;
+    if (baked == null) {
+      // Pre-bake fallback: flat translucent fill through the same
+      // feather mask the bake uses, so the silhouette is identical and
+      // the swap-in (flat → glittery) doesn't shift any pixel outside
+      // the slab area.
+      context.canvas.drawRect(dst, Paint()..color = _fallbackColor);
+      _drawFeatherMask(context.canvas, dst);
+      context.canvas.restore();
+      return;
+    }
+
     // Where am I on screen, in logical pixels?
     final screenPos = localToGlobal(Offset.zero);
 
-    final viewport = _baked.viewportSize;
-    final scale = _baked.scaleFactor;
+    final viewport = baked.viewportSize;
+    final scale = baked.scaleFactor;
 
     // Compute the strip's logical srcRect on the *scaled* image. Live
     // bg displays the scaled image with its alignment-fixed point at
@@ -139,35 +198,31 @@ class _RenderPreBakedBackdrop extends RenderBox {
     final logicalSrcTop = screenPos.dy + shiftY;
 
     // Convert logical coords into bake-image pixel coords.
-    final ratio = _baked.pixelRatio;
+    final ratio = baked.pixelRatio;
     final src = Rect.fromLTWH(
       logicalSrcLeft * ratio,
       logicalSrcTop * ratio,
       size.width * ratio,
       size.height * ratio,
     );
-    final dst = Rect.fromLTWH(
-      offset.dx,
-      offset.dy,
-      size.width,
-      size.height,
-    );
 
-    // Save a layer so the radial alpha mask below composites against
-    // the freshly-drawn image only — not against whatever was painted
-    // into the parent canvas before us.
-    context.canvas.saveLayer(dst, Paint());
     context.canvas.drawImageRect(
-      _baked.image,
+      baked.image,
       src,
       dst,
       Paint()..filterQuality = ui.FilterQuality.medium,
     );
-    // Vertical linear alpha feather: transparent at top, opaque through
-    // the middle band, transparent at bottom. BlendMode.dstIn keeps the
-    // blurred image's pixels only where this gradient has alpha — so
-    // the top and bottom edges of the strip fade to the unblurred live
-    // bg behind us, while the line itself sits in a fully-blurred band.
+    _drawFeatherMask(context.canvas, dst);
+    context.canvas.restore();
+  }
+
+  // Vertical linear alpha feather: transparent at top, opaque through
+  // the middle band, transparent at bottom. BlendMode.dstIn keeps the
+  // freshly-drawn pixels (bake slice or fallback color) only where this
+  // gradient has alpha — top and bottom edges fade to the unblurred
+  // live bg behind us, while the line itself sits in a fully-opaque
+  // band.
+  void _drawFeatherMask(ui.Canvas canvas, Rect dst) {
     final maskPaint = Paint()
       ..blendMode = BlendMode.dstIn
       ..shader = ui.Gradient.linear(
@@ -186,8 +241,7 @@ class _RenderPreBakedBackdrop extends RenderBox {
           1.0,
         ],
       );
-    context.canvas.drawRect(dst, maskPaint);
-    context.canvas.restore();
+    canvas.drawRect(dst, maskPaint);
   }
 }
 
@@ -196,3 +250,16 @@ class _RenderPreBakedBackdrop extends RenderBox {
 /// strip and back to 0 over the bottom `_featherFraction`. Higher → wider
 /// fade band, narrower fully-blurred middle.
 const double _featherFraction = 0.25;
+
+/// Theme-derived flat color used by [PreBakedBackdrop] before the bake
+/// settles. Picked to read as plausible frosting against either glittery
+/// bg — light mode lands on a milky pinkish tone (the bake's average
+/// after saturation × scale × lift); dark mode lands on a translucent
+/// purple-magenta tone. Both are slightly translucent so the live sharp
+/// bg shows through and the swap-in to the real bake stays in place
+/// instead of flashing.
+Color preBakedBackdropFallback(ThemeData theme) {
+  return theme.brightness == Brightness.dark
+      ? const Color(0x99362442) // ~purple-magenta @ 60%
+      : const Color(0x99F0CFD8); // ~milky pink @ 60%
+}

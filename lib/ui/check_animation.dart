@@ -202,19 +202,21 @@ class GlowingCheckbox extends ConsumerWidget {
       bakedBgProvider(BakedBgKey(brightness: brightness, size: viewportSize)),
     );
     final baked = bakedAsync.value;
+    final fallback = preBakedBackdropFallback(Theme.of(context));
 
     // M3 Checkbox paints transparent fill in unselected state; frost
     // shows through. When checked, primary fill paints over the frost.
-    final frosted = baked == null
-        ? const SizedBox.shrink()
-        : SizedBox(
-            width: 18,
-            height: 18,
-            child: ClipRRect(
-              borderRadius: const BorderRadius.all(Radius.circular(2)),
-              child: PreBakedBackdrop(baked: baked),
-            ),
-          );
+    final frosted = SizedBox(
+      width: 18,
+      height: 18,
+      child: ClipRRect(
+        borderRadius: const BorderRadius.all(Radius.circular(2)),
+        child: PreBakedBackdrop(
+          baked: baked,
+          fallbackColor: fallback,
+        ),
+      ),
+    );
 
     final checkbox = Transform.scale(
       scale: scale,
