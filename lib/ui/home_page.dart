@@ -178,22 +178,9 @@ class _HomePageState extends ConsumerState<HomePage> {
                       await _confirmDeleteList(
                           currentList.id, currentList.name);
                     }
-                  case 'theme-light':
-                    await ref
-                        .read(themeModeProvider.notifier)
-                        .set(ThemeMode.light);
-                  case 'theme-system':
-                    await ref
-                        .read(themeModeProvider.notifier)
-                        .set(ThemeMode.system);
-                  case 'theme-dark':
-                    await ref
-                        .read(themeModeProvider.notifier)
-                        .set(ThemeMode.dark);
                 }
               },
               itemBuilder: (_) {
-                final mode = ref.read(themeModeProvider);
                 return [
                   _MenuItem(
                     value: 'new',
@@ -219,7 +206,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                       icon: Icons.delete_outline,
                       label: 'Delete List',
                     ),
-                  _ThemeSegmentMenuItem(currentMode: mode),
+                  const _ThemeSegmentMenuItem(),
                 ];
               },
             ),
@@ -374,13 +361,14 @@ class _HomePageState extends ConsumerState<HomePage> {
 }
 
 /// Three-segment theme picker (sun / auto / moon) embedded in the
-/// hamburger menu in place of a single cycling toggle. The whole row
-/// is one [PopupMenuItem] but each segment dispatches its own
-/// `theme-<mode>` action via `Navigator.pop(context, value)` — the
-/// outer `onSelected` switch handler reads that value and persists
-/// the choice through `themeModeProvider`. `enabled: false` on the
-/// outer item disables the default tap-anywhere-to-pop behavior so
-/// the segments are the only interactive surface.
+/// hamburger menu. The whole row is one [PopupMenuItem] with
+/// `enabled: false` so the default tap-to-pop behavior is suppressed
+/// — segments are the only interactive surface and dispatch directly
+/// through `themeModeProvider`. The menu intentionally STAYS OPEN
+/// when a segment is tapped, so the user can preview a mode and
+/// switch again without re-opening; the row is a `ConsumerWidget`
+/// that watches the provider, so the highlighted segment refreshes
+/// live as state flips.
 ///
 /// The disabled-state styling that Material applies to the child
 /// (an `IconTheme` with `opacity: 0.38` plus a `disabledColor`-tinted
@@ -389,23 +377,26 @@ class _HomePageState extends ConsumerState<HomePage> {
 /// at the surface-onColor — otherwise the icons + labels look greyed
 /// out as if not-interactable, which they explicitly are.
 class _ThemeSegmentMenuItem extends PopupMenuItem<String> {
-  _ThemeSegmentMenuItem({required ThemeMode currentMode})
+  const _ThemeSegmentMenuItem()
       : super(
           enabled: false,
           height: 124,
           padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
-          child: _ThemeSegmentRow(currentMode: currentMode),
+          child: const _ThemeSegmentRow(),
         );
 }
 
-class _ThemeSegmentRow extends StatelessWidget {
-  const _ThemeSegmentRow({required this.currentMode});
-
-  final ThemeMode currentMode;
+class _ThemeSegmentRow extends ConsumerWidget {
+  const _ThemeSegmentRow();
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
+    final currentMode = ref.watch(themeModeProvider);
     final scheme = Theme.of(context).colorScheme;
+    void select(ThemeMode mode) {
+      ref.read(themeModeProvider.notifier).set(mode);
+    }
+
     return IconTheme.merge(
       data: IconThemeData(opacity: 1.0, color: scheme.onSurface),
       child: DefaultTextStyle.merge(
@@ -430,19 +421,19 @@ class _ThemeSegmentRow extends StatelessWidget {
                   icon: Icons.wb_sunny_outlined,
                   label: 'Light',
                   selected: currentMode == ThemeMode.light,
-                  actionValue: 'theme-light',
+                  onTap: () => select(ThemeMode.light),
                 ),
                 _ThemeSegment(
                   icon: Icons.brightness_auto_outlined,
                   label: 'Auto',
                   selected: currentMode == ThemeMode.system,
-                  actionValue: 'theme-system',
+                  onTap: () => select(ThemeMode.system),
                 ),
                 _ThemeSegment(
                   icon: Icons.nightlight_outlined,
                   label: 'Dark',
                   selected: currentMode == ThemeMode.dark,
-                  actionValue: 'theme-dark',
+                  onTap: () => select(ThemeMode.dark),
                 ),
               ],
             ),
@@ -458,13 +449,13 @@ class _ThemeSegment extends StatelessWidget {
     required this.icon,
     required this.label,
     required this.selected,
-    required this.actionValue,
+    required this.onTap,
   });
 
   final IconData icon;
   final String label;
   final bool selected;
-  final String actionValue;
+  final VoidCallback onTap;
 
   @override
   Widget build(BuildContext context) {
@@ -472,7 +463,7 @@ class _ThemeSegment extends StatelessWidget {
     final bg = selected ? scheme.primary.withValues(alpha: 0.18) : null;
     final fg = selected ? scheme.primary : scheme.onSurface;
     return InkWell(
-      onTap: () => Navigator.of(context).pop<String>(actionValue),
+      onTap: onTap,
       borderRadius: BorderRadius.circular(14),
       child: Padding(
         padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
@@ -530,7 +521,14 @@ class _MenuItemRow extends StatelessWidget {
       children: [
         Icon(icon, size: 28),
         const SizedBox(width: 14),
-        Text(label, style: const TextStyle(fontSize: 24)),
+        // Flexible so the label can shrink to fit when the popup
+        // gives the row less width than the 24 px text would want
+        // naturally (this happens at narrow surface sizes / specific
+        // text-scale ratios; before, the row would overflow on the
+        // right).
+        Flexible(
+          child: Text(label, style: const TextStyle(fontSize: 24)),
+        ),
       ],
     );
   }
