@@ -79,6 +79,12 @@ class Scenarios {
             TodoItem(
               id: 'L1-i4',
               text: 'A longer item that probably wraps onto two lines',
+              glittered: true,
+            ),
+            TodoItem(
+              id: 'L1-i5',
+              text: 'Replace toothbrush head',
+              glittered: true,
             ),
           ]),
         ],

@@ -2,7 +2,7 @@
 
 A scratchpad of candidate work for Glitter List. **Not a commitment.** Items get added, reordered, shipped, or dropped without ceremony — priority shifts as the project does. When something ships, delete its entry; `CHANGELOG.md` and git history are the archive.
 
-Order is loose; priority is the signal, not position.
+Position is the source of truth — the topmost entry is "next." Priority is a separate gut-feel signal about value, not ordering.
 
 Each entry uses these fields:
 
@@ -17,9 +17,31 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# UI cycle: tilt parallax → multi-depth frosted overlays → HDR sparkle dust
+# Bake off the main thread on first frame
 
 - **Status:** Next-up
+- **Priority:** Medium
+- **Why:** On cold launch the bg PNG decode + saturation/blur pass + `picture.toImage()` readback in `_bake` (lib/ui/baked_bg.dart) all run on the main UI isolate. Real-device logs show `Skipped 42 frames! The application may be doing too much work on its main thread.` during this window, and the per-line frosted "diffusion" strips visibly pop in late after first paint. Same window fires again on theme flip / rotation / size change — anything that invalidates `BakedBgKey`. Faster bakes also mean we don't need a splash gate to mask it (the v0.6.2 cleanup deleted that machinery).
+- **Scope:** Two angles, can land separately or together. (1) **Asset shrink** — `assets/images/bg_light.png` and `bg_dark.png` are 941×1672 PNGs at ~2.7 MB each. PNG decode time scales with pixel count + entropy. Resizing the source down to ~600×1100 (or ~400×800 since the bake heavily blurs anyway) cuts decode time roughly in half without visible quality loss. Lossless WebP would also shave bytes. (2) **Move the bake to a background isolate** — `compute()` or a dedicated `Isolate.spawn` call so the decode + filter + `toImage` pipeline doesn't block UI raster. Tricky bit: `ui.Image` isn't Send-safe across isolates in older Flutter versions, but a `Uint8List` of bytes is — bake to bytes in the isolate, decode the bytes back into a `ui.Image` on the main isolate at the end. Worth measuring whether the cross-isolate handoff cost beats the on-main savings.
+- **Risk / cost:** Asset shrink is ~30 minutes (resize PNGs, eyeball quality, commit). Isolate-bake is half a day to a day depending on what `picture.toImage` does in 3.41.x. Likely a clear UX win on cold-launch perceived performance.
+- **Depends on:** Nothing.
+
+---
+
+# Data persistence / Export / backup mechanism
+
+- **Status:** Next-up
+- **Priority:** Medium
+- **Why:** Today, every list lives in the Hive box on the device. A reinstall, a lost phone, or a "send my groceries to my partner" moment all fall off the cliff. We need both a backup story (so reinstalls survive) and a share story (so a list can move out of the app).
+- **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
+- **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
+- **Depends on:** Nothing.
+
+---
+
+# UI cycle: tilt parallax → multi-depth frosted overlays → HDR sparkle dust
+
+- **Status:** Candidate
 - **Priority:** High
 - **Why:** The app's identity is "glittery." Today's scroll-driven bg parallax is the floor of that vision; device-tilt parallax, multi-depth frosted overlays, and HDR-bright sparkle dust are the ceiling. The three phases compose into one design — shipping any in isolation under-delivers the look. Each phase is a separate PR; the cycle isn't "done" until all three land.
 
@@ -56,15 +78,4 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Data persistence / Export / backup mechanism
-
-- **Status:** Candidate
-- **Priority:** Medium
-- **Why:** Today, every list lives in the Hive box on the device. A reinstall, a lost phone, or a "send my groceries to my partner" moment all fall off the cliff. We need both a backup story (so reinstalls survive) and a share story (so a list can move out of the app).
-- **Scope:** Two adjacent capabilities. (1) **Backup / restore** — pick the right transport: JSON file via the OS file picker, iCloud / Google Drive sync, or a local-first sqlite-style export. JSON file is the cheapest first cut and works offline. (2) **Share** — every list serializes to Markdown by design (one `- [ ] item` per line, `# List name` header), so it can paste into iMessage / Mail / Slack / wherever, with or without Glitter List on the receiving end. The share sheet is the system surface; the format is just stringified Markdown.
-- **Risk / cost:** ~1 day for JSON file backup + Markdown share. Cloud sync (iCloud/Drive) is a separate, larger track and should be its own entry once we decide we want it.
-- **Depends on:** Nothing.
-
----
-
-<!-- Add new entries below. Order is loose; priority is the signal. When an entry ships, delete it. -->
+<!-- Add new entries below. Position is the source of truth — top = next. When an entry ships, delete it. -->

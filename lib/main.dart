@@ -6,6 +6,7 @@ import 'package:uuid/uuid.dart';
 import 'models/todo_item.dart';
 import 'models/todo_list.dart';
 import 'state/app_state.dart';
+import 'state/theme_mode.dart';
 import 'storage/hive_repository.dart';
 import 'ui/baked_bg.dart';
 import 'ui/glitter_colors.dart';
@@ -141,7 +142,7 @@ List<TodoList> _seedLists() {
   ];
 }
 
-class GlitterListApp extends StatelessWidget {
+class GlitterListApp extends ConsumerWidget {
   const GlitterListApp({super.key});
 
   static const _titleFontSize = 34.0;
@@ -192,17 +193,18 @@ class GlitterListApp extends StatelessWidget {
   }
 
   @override
-  Widget build(BuildContext context) {
+  Widget build(BuildContext context, WidgetRef ref) {
     // BgParallaxHost sits above MaterialApp so BgParallaxScope is
     // reachable from inside Navigator's root Overlay — i.e. from
     // anything reparented out of the regular widget tree by
     // showDialog, PopupMenuButton, or ReorderableListView's drag
     // proxy. Before the hoist, those overlay-routed widgets fell
     // back to Alignment.center for any per-line frosted strip.
+    final themeMode = ref.watch(themeModeProvider);
     return BgParallaxHost(
       child: MaterialApp(
         title: 'Glitter List',
-        themeMode: ThemeMode.system,
+        themeMode: themeMode,
         theme: _buildTheme(Brightness.light),
         darkTheme: _buildTheme(Brightness.dark),
         home: const HomePage(),

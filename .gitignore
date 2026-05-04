@@ -47,3 +47,8 @@ app.*.map.json
 # matchesGoldenFile dumps actual-rendered PNGs here on a pixel mismatch.
 # Local-dev debris; never commit.
 integration_test/goldens/failures/
+
+# AI agent harness state (Claude Code, Codex). Conversation transcripts,
+# scheduled-task locks, and per-project settings live here — never commit.
+.claude/
+.codex/

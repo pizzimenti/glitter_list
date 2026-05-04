@@ -1,3 +1,5 @@
+import 'package:flutter/material.dart';
+
 import '../models/todo_list.dart';
 import '../storage/hive_repository.dart';
 
@@ -32,5 +34,15 @@ class InMemoryRepository extends HiveRepository {
   @override
   Future<void> markSeeded() async {
     _seeded = true;
+  }
+
+  ThemeMode _themeMode = ThemeMode.system;
+
+  @override
+  ThemeMode loadThemeMode() => _themeMode;
+
+  @override
+  Future<void> saveThemeMode(ThemeMode mode) async {
+    _themeMode = mode;
   }
 }
