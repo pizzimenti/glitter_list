@@ -37,6 +37,11 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 - None.
 
+### Notes
+
+- Visual-regression coverage is manual now (run `tool/qa_main.dart` on the emulator before merging anything that touches a render path: `baked_bg.dart`, `per_line_backdrop_blur.dart`, `glitter_outline.dart`, `check_animation.dart`, `home_page.dart`'s bg layer, or `todo_tile.dart`). The pixel-comparison goldens were retired this release for the reasons in the Removed section above.
+- Bake on cold launch still runs on the main UI isolate — real-device logs show `Skipped 42 frames` during the first-paint window, and the per-line frosted strips still pop in late on slow devices. Tracked at the top of `future.md` for follow-up: shrink the source PNGs and/or move `_bake` into a background isolate.
+
 ## [0.6.1] - 2026-05-01
 
 ### Added
