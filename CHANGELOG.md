@@ -4,6 +4,39 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.6.2] - 2026-05-04
+
+### Added
+
+- **Theme override (sun / auto / moon).** New 3-segment picker in the hamburger menu under a "Theme" header — `Light`, `Auto`, `Dark`. Choice is persisted in Hive (`HiveRepository.loadThemeMode` / `saveThemeMode`) and exposed via a new `themeModeProvider` Riverpod notifier (`@Riverpod(keepAlive: true)` in `lib/state/theme_mode.dart`). `MaterialApp.themeMode` reads it; default remains `ThemeMode.system`. Picking a non-`Auto` value pins the theme regardless of the OS setting.
+
+### Changed
+
+- **Glittered-item readability.** Three changes layered together so the squiggle outline reads cleanly against the busy bg in both modes:
+  - **Theme-tuned squiggle palette** — light mode uses deep magenta + the muted `lightContent` purple; dark mode uses the hot accent pink + the soft chrome lilac. Both pairs sit far enough from the bg in luminance to read clearly.
+  - **Always-on contrast under-stroke** behind every squiggle segment, scaled `strokeWidth + 2.4` and tinted opposite the bg (deep plum on light, soft pink on dark). Removes the "wave squirming on glitter dots" that made the outline hard to follow.
+  - **Wider per-line frosted strip on glittered rows** — the strip outsets ≈10 px horizontally on glittered items only, so the squiggle has a clean substrate instead of pressing right up to the glyphs.
+- **Squiggle is wavy, not jagged.** Replaced the high-frequency random per-point wobble in `_squigglePath` with two layered sines at 28 px and 17 px wavelengths (random phase per item, 0.7/0.3 amplitude split) and a corner taper that damps wobble to 0 at each polygon corner. Wobble on every segment is clamped to outward-only (`-perp` direction) so a phase that lands an inward peak mid-edge can never dip the path into a glyph.
+- **Squiggle traces the per-line text contour.** For wrapped multi-line items the outline is now one continuous CW polygon — left edge straight, top of line 0, then a staircase on the right that drops the right edge of each line and cuts horizontally at every line boundary to the next line's right edge. Used to be one squiggle per line; the new shape matches the actual ragged-right text block, with per-line frosted strips behind each glyph row.
+- **Slab + squiggle + text composed in one render path.** `PerLineBackdropBlur` accepts a `betweenLayerBuilder` (`(lines, size) → Widget`) and threads the OUTER text painter's already-computed `LineMetrics` into the squiggle painter. Without this, `GlitterOutline` re-laid-out its own `TextPainter` at the inner Stack's tighter `constraints.maxWidth`, picked different break points (e.g. "Replace toothbrush head" → 3 lines instead of 2), and traced a polygon that didn't match the slab strips behind it. Layering inside one widget — slab → squiggle → glyphs → strikethrough painter — also stops the slab from painting on top of the squiggle the way it did at sibling z-order.
+- **Light-mode bg is brighter** (composed `s=1.1` saturation × 0.72 scale + 68 lift). Mid-tones lift to ~160 (was ~150), shadows from ~72 → ~104; white point lands at ~252 so the brightest glitter pixels stay just under the 255 ceiling and the bg never clips into pure-white. Dark mode unchanged. The light off-diagonals preserve enough channel-vs-channel contrast for the per-line frosted slab to read against the surrounding sharp bg — a flat brightness-only matrix tried first lost that "diffusion" effect.
+- **All animation durations doubled.** Check-off / shimmer / squiggle draw-in / squiggle puff / page-swipe / page-dot transition each take twice as long. Lets the rainbow-strikethrough sweep, the squiggle's animated trace-on, and the sparkle bursts read more clearly.
+- **Multi-line list items get more vertical padding** (8 px contentPadding vs. 2 px for single-line). Glittered multi-line items had their squiggle outlines visibly overlapping the row above and below at the previous 2 px tile padding. Keying the padding on wrap (not on `glittered`) means toggling glitter doesn't reflow the list — items stay put.
+- **Brightness reads now go through the resolved Theme.** `per_line_backdrop_blur.dart`, `check_animation.dart`, and `_PageDots` previously read `MediaQuery.platformBrightnessOf(context)` to pick which `BakedBg` to sample. With the new theme override, `MaterialApp.themeMode = dark` on a system-light device would have left those three call sites on `bg_light.png` while the rest of the app went dark. They now read `Theme.of(context).brightness`, which respects the override.
+- **Faster bake.** `_bakePixelRatio` dropped from `0.5` to `0.35` — half the GPU work and readback for the per-line frosted slab. The blur sigma scales with the ratio (`_effectiveBlurSigma * _bakePixelRatio`) so the on-screen blur stays at the same 8 px. Shortens the "frosted strips pop in late after first paint" window on cold launch.
+- **`mixedDoneGlittered` scenario** glitters the long-wrapping item and adds a second multi-line item ("Replace toothbrush head") whose first line is narrower than its second. Both staircase orientations (longest line first vs. last) are now exercised by the integration tests + manual QA.
+- **Long-press item menu reordered** — `Glitter / Un-Glitter Item` is now the first entry, with `Edit` and `Delete` below. Glitter is the signature gesture of this app and the most common long-press intent; surfacing it at the top makes it a thumb-distance tap.
+- **Item edit is a modal dialog now** instead of an inline `TextField` swap. Long-press → Edit pops a `TextPromptDialog` prefilled with the current text. The previous inline editor sat behind the squiggle outline and frosted strip layers, which clipped most of the text being edited; the modal gives the full glyph string to work with. The shared `lib/ui/text_prompt_dialog.dart` widget (extracted from the renamed-list dialog in `home_page.dart`) is reused here.
+- **Scroll indicator gains side rails.** Two thin (1 px) full-height rails flank the thumb at ±4 px from center, in the same content color at 0.4 alpha. Communicates "this list is scrollable" / "the thumb has somewhere to go" without competing with the moving thumb. Column widens from 3 px to 11 px.
+
+### Removed
+
+- **Pixel-comparison golden image tests.** `integration_test/goldens/` (6 tests across the consolidated file) and `integration_test/flutter_test_config.dart`'s tolerant `LocalFileComparator` are gone. The CI integration matrix shrinks from 6 cells to 4 (`{items, lists} × {light, dark}`). Visual regressions are now caught by manually running `tool/qa_main.dart` on the emulator before merging anything that touches a render path. The trade was deliberate: the comparator was already absorbing 0.01% drift to compensate for run-to-run noise on the runner GPU, which meant subtle real regressions could slip through anyway, and every visual change required a regen + diff-stare-at-PNGs cycle. Behavioral integration tests (`items_test.dart`, `lists_test.dart`) still cover functional regressions on the same emulator. CLAUDE.md's "Regenerating goldens" subsection + the "5-test consolidated file" warning are gone too.
+
+### Fixed
+
+- None.
+
 ## [0.6.1] - 2026-05-01
 
 ### Added

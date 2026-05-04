@@ -119,13 +119,14 @@ class _ListPageState extends ConsumerState<ListPage> {
             },
           ),
           // Half-way between the screen edge and the checkbox column
-          // (TodoTile uses contentPadding: horizontal: 18, so checkbox
-          // sits at ~18px from the left). 9px center, 3px wide thumb.
+          // (TodoTile uses contentPadding: horizontal: 22, so checkbox
+          // sits at ~22 px from the left). 9 px center; the column is
+          // wide enough to host the thumb plus the two flanking rails.
           Positioned(
-            left: _ScrollIndicator.centerX - _ScrollIndicator.thumbWidth / 2,
+            left: _ScrollIndicator.centerX - _ScrollIndicator.totalWidth / 2,
             top: 0,
             bottom: 0,
-            width: _ScrollIndicator.thumbWidth,
+            width: _ScrollIndicator.totalWidth,
             child: _ScrollIndicator(
               controller: _scrollController,
               color: context.glitter.content,
@@ -145,7 +146,11 @@ class _ScrollIndicator extends StatelessWidget {
 
   static const centerX = 9.0;
   static const thumbWidth = 3.0;
+  static const railWidth = 1.0;
+  static const _railGap = 3.0;
+  static const totalWidth = thumbWidth + 2 * (railWidth + _railGap);
   static const _minThumbHeight = 24.0;
+  static const _railAlpha = 0.4;
 
   final ScrollController controller;
   final Color color;
@@ -173,24 +178,48 @@ class _ScrollIndicator extends StatelessWidget {
             (pos.maxScrollExtent + pos.viewportDimension);
         final scrollFrac =
             (pos.pixels / pos.maxScrollExtent).clamp(0.0, 1.0);
+        final railColor = color.withValues(alpha: _railAlpha);
         return LayoutBuilder(
           builder: (context, constraints) {
             final h = constraints.maxHeight;
             final thumbH = (visibleFrac * h).clamp(_minThumbHeight, h);
-            return Align(
-              // Align(0, -1) puts child flush at the top, (0, +1) at the
-              // bottom — so scrollFrac * 2 - 1 maps [0, 1] → [-1, +1].
-              alignment: Alignment(0, scrollFrac * 2 - 1),
-              child: SizedBox(
-                width: thumbWidth,
-                height: thumbH,
-                child: DecoratedBox(
-                  decoration: BoxDecoration(
-                    color: color,
-                    borderRadius: BorderRadius.circular(thumbWidth / 2),
+            return Stack(
+              clipBehavior: Clip.none,
+              children: [
+                // Left rail — full-height fixed line.
+                Positioned(
+                  left: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: railWidth,
+                  child: ColoredBox(color: railColor),
+                ),
+                // Right rail.
+                Positioned(
+                  right: 0,
+                  top: 0,
+                  bottom: 0,
+                  width: railWidth,
+                  child: ColoredBox(color: railColor),
+                ),
+                // Thumb — horizontally centered between the rails,
+                // vertical position from `scrollFrac`. Align(0, -1)
+                // puts child flush at the top, (0, +1) at the bottom
+                // — so `scrollFrac * 2 - 1` maps [0, 1] → [-1, +1].
+                Align(
+                  alignment: Alignment(0, scrollFrac * 2 - 1),
+                  child: SizedBox(
+                    width: thumbWidth,
+                    height: thumbH,
+                    child: DecoratedBox(
+                      decoration: BoxDecoration(
+                        color: color,
+                        borderRadius: BorderRadius.circular(thumbWidth / 2),
+                      ),
+                    ),
                   ),
                 ),
-              ),
+              ],
             );
           },
         );

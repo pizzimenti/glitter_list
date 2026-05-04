@@ -1,4 +1,4 @@
-import 'package:flutter/widgets.dart';
+import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import 'baked_bg.dart';
@@ -31,6 +31,8 @@ class PerLineBackdropBlur extends ConsumerWidget {
     this.softWrap = true,
     this.overflow = TextOverflow.clip,
     this.borderRadius = const BorderRadius.all(Radius.circular(8)),
+    this.backdropOutset = EdgeInsets.zero,
+    this.betweenLayerBuilder,
   });
 
   final String text;
@@ -40,9 +42,34 @@ class PerLineBackdropBlur extends ConsumerWidget {
   final TextOverflow overflow;
   final BorderRadius borderRadius;
 
+  /// Extends each per-line frosted strip past the line's text bounds
+  /// — used for glittered rows so the squiggle has a clean substrate
+  /// to draw against instead of pressing right up to the glyphs. The
+  /// inner text stays at its original position.
+  final EdgeInsets backdropOutset;
+
+  /// Builder for an optional widget rendered BETWEEN the slabs and
+  /// the text. Receives the OUTER TextPainter's already-computed line
+  /// metrics + content size so the between-layer can render against
+  /// the SAME line breaks as the strips. A naive `Widget` would
+  /// re-layout its own TextPainter at the inner Stack's tighter
+  /// `constraints.maxWidth` (= `tp.size.width`, narrower than the
+  /// outer's `layoutMaxWidth`) and could pick different break points
+  /// — when the second-or-later line is the widest, the squiggle
+  /// then wraps a different polygon than what's behind it.
+  final Widget Function(List<LineMetrics> lines, Size size)?
+  betweenLayerBuilder;
+
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final brightness = MediaQuery.platformBrightnessOf(context);
+    // Read brightness from the resolved Theme rather than
+    // `MediaQuery.platformBrightness`. MaterialApp.themeMode
+    // (set by the user's hamburger override) is what flips
+    // light↔dark for the rest of the app's theme; the bake
+    // must follow the same signal so a `ThemeMode.dark` override
+    // on a system-light device picks `bg_dark.png` instead of
+    // staying on the light asset.
+    final brightness = Theme.of(context).brightness;
     final viewportSize = MediaQuery.sizeOf(context);
     final textScaler = MediaQuery.textScalerOf(context);
     final bakedAsync = ref.watch(
@@ -100,27 +127,44 @@ class PerLineBackdropBlur extends ConsumerWidget {
         return SizedBox(
           width: size.width,
           height: size.height,
+          // Glittered rows pass a non-zero `backdropOutset`; the wider
+          // strip extends past the line's text bounds, so the parent
+          // Stack must not clip. The three logical layers — slab,
+          // optional between-layer (glitter squiggle), text — are
+          // drawn as separate children so a sibling at higher z (e.g.
+          // squiggle outline) can paint over slabs but still below
+          // the glyphs that would otherwise be obscured by it.
           child: Stack(
+            clipBehavior: Clip.none,
             children: [
+              if (baked != null)
+                for (final line in lines)
+                  Positioned(
+                    left: line.metrics.left - backdropOutset.left,
+                    top: line.metrics.baseline -
+                        line.metrics.ascent -
+                        backdropOutset.top,
+                    width:
+                        line.metrics.width + backdropOutset.horizontal,
+                    height:
+                        line.metrics.height + backdropOutset.vertical,
+                    child: ClipRRect(
+                      borderRadius: borderRadius,
+                      child: PreBakedBackdrop(baked: baked),
+                    ),
+                  ),
+              if (betweenLayerBuilder != null)
+                Positioned.fill(
+                  child: betweenLayerBuilder!(
+                    metrics,
+                    size,
+                  ),
+                ),
               for (final line in lines)
                 Positioned(
                   left: line.metrics.left,
                   top: line.metrics.baseline - line.metrics.ascent,
-                  width: line.metrics.width,
-                  height: line.metrics.height,
-                  child: ClipRRect(
-                    borderRadius: borderRadius,
-                    child: Stack(
-                      fit: StackFit.expand,
-                      children: [
-                        // Baked-bg slice. Until the bake resolves, the
-                        // strip just leaves the live bg showing through.
-                        if (baked != null) PreBakedBackdrop(baked: baked),
-                        // The line itself, drawn on top of the slice.
-                        _lineWidget(line.text),
-                      ],
-                    ),
-                  ),
+                  child: _lineWidget(line.text),
                 ),
             ],
           ),

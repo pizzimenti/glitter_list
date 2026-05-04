@@ -29,12 +29,17 @@ class RainbowStrikethrough extends StatelessWidget {
     required this.baseStyle,
     required this.mutedColor,
     required this.progress,
+    this.backdropOutset = EdgeInsets.zero,
+    this.betweenLayerBuilder,
   });
 
   final String text;
   final TextStyle baseStyle;
   final Color mutedColor;
   final Animation<double> progress;
+  final EdgeInsets backdropOutset;
+  final Widget Function(List<LineMetrics> lines, Size size)?
+  betweenLayerBuilder;
 
   @override
   Widget build(BuildContext context) {
@@ -71,6 +76,8 @@ class RainbowStrikethrough extends StatelessWidget {
           child: PerLineBackdropBlur(
             text: text,
             style: styled,
+            backdropOutset: backdropOutset,
+            betweenLayerBuilder: betweenLayerBuilder,
           ),
         );
       },
@@ -186,7 +193,10 @@ class GlowingCheckbox extends ConsumerWidget {
 
   @override
   Widget build(BuildContext context, WidgetRef ref) {
-    final brightness = MediaQuery.platformBrightnessOf(context);
+    // Read from Theme so MaterialApp.themeMode (the hamburger
+    // override) controls which baked bg we sample — see the matching
+    // comment in PerLineBackdropBlur.
+    final brightness = Theme.of(context).brightness;
     final viewportSize = MediaQuery.sizeOf(context);
     final bakedAsync = ref.watch(
       bakedBgProvider(BakedBgKey(brightness: brightness, size: viewportSize)),

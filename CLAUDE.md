@@ -60,12 +60,6 @@ Runs on a real device or emulator. Exists under `integration_test/`:
   long-press menu (Glitter / Delete), drag-reorder.
 - `integration_test/lists_test.dart` — create list, switch lists by
   swipe.
-- `integration_test/goldens/*_test.dart` — golden-image regression
-  suite, captures pixel-exact PNGs of the load-bearing visual
-  surfaces. Golden filename pivots on the device's current
-  `MediaQuery.platformBrightness`, so the same test contributes
-  `<surface>_light.png` on a light-mode pass and `<surface>_dark.png`
-  on a dark-mode pass.
 
 The same `test_harness.dart` powers these. Don't call
 `tester.pumpAndSettle()` after triggering an animation in the app —
@@ -73,23 +67,14 @@ some animations (sparkle, glitter outline draw-in) run for a known
 window; pump past them with `tester.pump(Duration(milliseconds: ...))`.
 `pumpAndSettle` is fine for opening dialogs / sheets / page swipes.
 
-### Regenerating goldens
+Visual regressions are caught manually: run `tool/qa_main.dart` on the
+emulator before merging anything that touches a render path
+(`baked_bg.dart`, `per_line_backdrop_blur.dart`, `glitter_outline.dart`,
+`check_animation.dart`, `home_page.dart`'s bg layer, `todo_tile.dart`).
+There's no automated pixel-comparison suite — see
+[v0.6.2's CHANGELOG][changelog-062] for why the goldens were dropped.
 
-Goldens at `integration_test/goldens/goldens/*.png` are pixel-exact —
-any drift fails CI. Regenerate when the SDK, emulator image, or a
-load-bearing widget changes:
-
-```sh
-adb shell "cmd uimode night no"
-flutter test integration_test/goldens/ -d emulator-5554 --update-goldens
-adb shell "cmd uimode night yes"
-flutter test integration_test/goldens/ -d emulator-5554 --update-goldens
-adb shell "cmd uimode night no"   # restore
-```
-
-Eyeball the diffs (`git diff -- '*.png'` shows new vs old) before
-committing — accidental visual changes should NOT regenerate
-silently.
+[changelog-062]: ./CHANGELOG.md
 
 ## Driving the emulator (live QA, not tests)
 
@@ -177,9 +162,9 @@ so every launch is a clean slate seeded from `Scenarios`.
 
 - `Analyze` — `flutter analyze`
 - `Unit + widget tests` — `flutter test`
-- `Integration tests (<suite> / <mode>)` — a 6-entry matrix
-  (`{items, lists, goldens} × {light, dark}`). Each entry boots
-  its own Android API 34 emulator via
+- `Integration tests (<suite> / <mode>)` — a 4-entry matrix
+  (`{items, lists} × {light, dark}`). Each entry boots its own
+  Android API 34 emulator via
   `reactivecircus/android-emulator-runner@v2`, flips system dark
   mode (`adb shell cmd uimode night yes/no`), and runs the one
   test file for that suite via `tool/ci_flutter_test.sh`.
@@ -190,40 +175,28 @@ Re-pin the timed pumps before assuming a logic bug.
 
 ### CI gotchas — read before changing the integration lane
 
-The CI pipeline's current shape exists because of a stack of
-real, demonstrated runner / SDK / framework fragilities. Each
-piece below is load-bearing:
-
-- **The 6-entry matrix.** Do **NOT** collapse back to one job
-  per brightness. The runner's emulator dies after ~7 apk
-  install/uninstall cycles, and combined items + lists +
-  goldens (~13 tests) overflows that ceiling. The matrix split
-  caps each emulator at the test count of one suite.
-- **`tool/ci_flutter_test.sh` wraps `flutter test`.** It
-  swallows post-test cleanup noise (`PathNotFoundException` on
-  `/tmp/flutter_tools.*`, `adb uninstall failed`) which fires
-  on a successful goldens run. Real test failures still
-  propagate (it greps for `Test failed`, `Some tests failed`,
-  and a `FAIL` prefix at line start, and honors them). Do not
-  bypass.
-- **`integration_test/flutter_test_config.dart` installs a
-  tolerant `LocalFileComparator`.** ≤0.01% pixel diff is
-  treated as pass. GPU / font / decoder run-to-run noise
-  routinely produces 1–3 px diffs on identical renders;
-  pixel-exact comparison would flag them as failures.
-- **Goldens are consolidated** into one
-  `integration_test/goldens/all_goldens_test.dart` with five
-  `testWidgets` calls. **Do not add new `*_test.dart` files to
-  `integration_test/goldens/`** — each new file forces a fresh
-  apk install/uninstall, and 5+ cycles per emulator overflows
-  the ceiling. New golden surfaces add a `testWidgets` to the
-  consolidated file.
-- **`subosito/flutter-action@v2` uses `channel: stable`.** That
-  channel floats; a stable-channel update was the proximate
-  cause of the May 2026 drift that required this whole pipeline
-  reshape. If drift recurs, the right structural fix is to pin
-  `flutter-version: <x.y.z>` in the workflow rather than
-  chasing the drift downstream.
+- **Matrix split per suite + brightness.** The runner's emulator
+  gets flaky after ~7 apk install/uninstall cycles. Splitting by
+  suite caps each emulator's workload at the test count of one
+  file (≤6 tests).
+- **`tool/ci_flutter_test.sh` wraps `flutter test`.** It swallows
+  post-test cleanup noise (`PathNotFoundException` on
+  `/tmp/flutter_tools.*`, `adb uninstall failed`) which fires on
+  successful runs. Real test failures still propagate (it greps
+  for `Test failed`, `Some tests failed`, and a `FAIL` prefix at
+  line start, and honors them). Do not bypass.
+- **`subosito/flutter-action@v2` is pinned to a fixed version**
+  (`flutter-version: 3.41.9`, not `channel: stable`). A stable-
+  channel update was the proximate cause of the May 2026 drift
+  that required pinning. If you need to take a new SDK, bump the
+  version explicitly.
+- The pixel-comparison golden tests were retired in v0.6.2 — see
+  the changelog. Do NOT re-add `matchesGoldenFile` calls or a
+  goldens job to the matrix without a deliberate decision; the
+  whole reason this lane shrank from 6 cells to 4 was that the
+  tolerant comparator was already absorbing more drift than it
+  caught. Visual regressions are caught by `tool/qa_main.dart`
+  on the emulator before merging instead.
 
 ### When CI fails on a PR
 

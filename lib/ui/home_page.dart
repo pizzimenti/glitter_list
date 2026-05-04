@@ -4,12 +4,14 @@ import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
 import '../state/app_state.dart';
+import '../state/theme_mode.dart';
 import 'add_list_sheet.dart';
 import 'baked_bg.dart';
 import 'glitter_theme.dart';
 import 'list_page.dart';
 import 'per_line_backdrop_blur.dart';
 import 'pre_baked_backdrop.dart';
+import 'text_prompt_dialog.dart';
 
 class HomePage extends ConsumerStatefulWidget {
   const HomePage({super.key});
@@ -108,7 +110,7 @@ class _HomePageState extends ConsumerState<HomePage> {
                     image: DecorationImage(
                       image: AssetImage(bgAsset),
                       fit: BoxFit.cover,
-                      colorFilter: bgSaturationFilter,
+                      colorFilter: bgSaturationFilterFor(brightness),
                     ),
                   ),
                 ),
@@ -176,34 +178,50 @@ class _HomePageState extends ConsumerState<HomePage> {
                       await _confirmDeleteList(
                           currentList.id, currentList.name);
                     }
+                  case 'theme-light':
+                    await ref
+                        .read(themeModeProvider.notifier)
+                        .set(ThemeMode.light);
+                  case 'theme-system':
+                    await ref
+                        .read(themeModeProvider.notifier)
+                        .set(ThemeMode.system);
+                  case 'theme-dark':
+                    await ref
+                        .read(themeModeProvider.notifier)
+                        .set(ThemeMode.dark);
                 }
               },
-              itemBuilder: (_) => [
-                _MenuItem(
-                  value: 'new',
-                  icon: Icons.playlist_add,
-                  label: 'New List',
-                ),
-                if (currentList != null)
+              itemBuilder: (_) {
+                final mode = ref.read(themeModeProvider);
+                return [
                   _MenuItem(
-                    value: 'rename',
-                    icon: Icons.drive_file_rename_outline,
-                    label: 'Rename List',
+                    value: 'new',
+                    icon: Icons.playlist_add,
+                    label: 'New List',
                   ),
-                if (currentList != null &&
-                    currentList.items.any((i) => i.done))
-                  _MenuItem(
-                    value: 'clear',
-                    icon: Icons.cleaning_services_outlined,
-                    label: 'Clear Completed',
-                  ),
-                if (currentList != null)
-                  _MenuItem(
-                    value: 'delete',
-                    icon: Icons.delete_outline,
-                    label: 'Delete List',
-                  ),
-              ],
+                  if (currentList != null)
+                    _MenuItem(
+                      value: 'rename',
+                      icon: Icons.drive_file_rename_outline,
+                      label: 'Rename List',
+                    ),
+                  if (currentList != null &&
+                      currentList.items.any((i) => i.done))
+                    _MenuItem(
+                      value: 'clear',
+                      icon: Icons.cleaning_services_outlined,
+                      label: 'Clear Completed',
+                    ),
+                  if (currentList != null)
+                    _MenuItem(
+                      value: 'delete',
+                      icon: Icons.delete_outline,
+                      label: 'Delete List',
+                    ),
+                  _ThemeSegmentMenuItem(currentMode: mode),
+                ];
+              },
             ),
           ],
         ),
@@ -275,7 +293,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _promptRename(String listId, String currentName) async {
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => _TextPromptDialog(
+      builder: (_) => TextPromptDialog(
         title: 'Rename list',
         confirmLabel: 'Save',
         initialValue: currentName,
@@ -342,7 +360,7 @@ class _HomePageState extends ConsumerState<HomePage> {
   Future<void> _promptAddItem(String listId) async {
     final result = await showDialog<String>(
       context: context,
-      builder: (_) => const _TextPromptDialog(
+      builder: (_) => const TextPromptDialog(
         title: 'New item',
         confirmLabel: 'Add',
       ),
@@ -355,52 +373,127 @@ class _HomePageState extends ConsumerState<HomePage> {
   }
 }
 
-class _TextPromptDialog extends StatefulWidget {
-  const _TextPromptDialog({
-    required this.title,
-    required this.confirmLabel,
-    this.initialValue,
-  });
-
-  final String title;
-  final String confirmLabel;
-  final String? initialValue;
-
-  @override
-  State<_TextPromptDialog> createState() => _TextPromptDialogState();
+/// Three-segment theme picker (sun / auto / moon) embedded in the
+/// hamburger menu in place of a single cycling toggle. The whole row
+/// is one [PopupMenuItem] but each segment dispatches its own
+/// `theme-<mode>` action via `Navigator.pop(context, value)` — the
+/// outer `onSelected` switch handler reads that value and persists
+/// the choice through `themeModeProvider`. `enabled: false` on the
+/// outer item disables the default tap-anywhere-to-pop behavior so
+/// the segments are the only interactive surface.
+///
+/// The disabled-state styling that Material applies to the child
+/// (an `IconTheme` with `opacity: 0.38` plus a `disabledColor`-tinted
+/// `DefaultTextStyle`) is undone inside the row by re-wrapping with
+/// an `IconTheme.merge(opacity: 1.0)` and a `DefaultTextStyle.merge`
+/// at the surface-onColor — otherwise the icons + labels look greyed
+/// out as if not-interactable, which they explicitly are.
+class _ThemeSegmentMenuItem extends PopupMenuItem<String> {
+  _ThemeSegmentMenuItem({required ThemeMode currentMode})
+      : super(
+          enabled: false,
+          height: 124,
+          padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 8),
+          child: _ThemeSegmentRow(currentMode: currentMode),
+        );
 }
 
-class _TextPromptDialogState extends State<_TextPromptDialog> {
-  late final TextEditingController _controller =
-      TextEditingController(text: widget.initialValue);
+class _ThemeSegmentRow extends StatelessWidget {
+  const _ThemeSegmentRow({required this.currentMode});
 
-  @override
-  void dispose() {
-    _controller.dispose();
-    super.dispose();
-  }
-
-  void _submit() => Navigator.pop(context, _controller.text);
+  final ThemeMode currentMode;
 
   @override
   Widget build(BuildContext context) {
-    return AlertDialog(
-      title: Text(widget.title),
-      content: TextField(
-        controller: _controller,
-        autofocus: true,
-        onSubmitted: (_) => _submit(),
+    final scheme = Theme.of(context).colorScheme;
+    return IconTheme.merge(
+      data: IconThemeData(opacity: 1.0, color: scheme.onSurface),
+      child: DefaultTextStyle.merge(
+        style: TextStyle(color: scheme.onSurface),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Padding(
+              padding: const EdgeInsets.only(bottom: 6),
+              child: Text(
+                'Theme',
+                style: TextStyle(
+                  fontSize: 18,
+                  color: scheme.onSurface.withValues(alpha: 0.7),
+                ),
+              ),
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.spaceEvenly,
+              children: [
+                _ThemeSegment(
+                  icon: Icons.wb_sunny_outlined,
+                  label: 'Light',
+                  selected: currentMode == ThemeMode.light,
+                  actionValue: 'theme-light',
+                ),
+                _ThemeSegment(
+                  icon: Icons.brightness_auto_outlined,
+                  label: 'Auto',
+                  selected: currentMode == ThemeMode.system,
+                  actionValue: 'theme-system',
+                ),
+                _ThemeSegment(
+                  icon: Icons.nightlight_outlined,
+                  label: 'Dark',
+                  selected: currentMode == ThemeMode.dark,
+                  actionValue: 'theme-dark',
+                ),
+              ],
+            ),
+          ],
+        ),
       ),
-      actions: [
-        TextButton(
-          onPressed: () => Navigator.pop(context),
-          child: const Text('Cancel'),
+    );
+  }
+}
+
+class _ThemeSegment extends StatelessWidget {
+  const _ThemeSegment({
+    required this.icon,
+    required this.label,
+    required this.selected,
+    required this.actionValue,
+  });
+
+  final IconData icon;
+  final String label;
+  final bool selected;
+  final String actionValue;
+
+  @override
+  Widget build(BuildContext context) {
+    final scheme = Theme.of(context).colorScheme;
+    final bg = selected ? scheme.primary.withValues(alpha: 0.18) : null;
+    final fg = selected ? scheme.primary : scheme.onSurface;
+    return InkWell(
+      onTap: () => Navigator.of(context).pop<String>(actionValue),
+      borderRadius: BorderRadius.circular(14),
+      child: Padding(
+        padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 4),
+        child: Column(
+          mainAxisSize: MainAxisSize.min,
+          children: [
+            Container(
+              width: 48,
+              height: 48,
+              decoration: BoxDecoration(color: bg, shape: BoxShape.circle),
+              alignment: Alignment.center,
+              child: Icon(icon, size: 28, color: fg),
+            ),
+            const SizedBox(height: 4),
+            Text(
+              label,
+              style: TextStyle(fontSize: 18, color: fg),
+            ),
+          ],
         ),
-        TextButton(
-          onPressed: _submit,
-          child: Text(widget.confirmLabel),
-        ),
-      ],
+      ),
     );
   }
 }
@@ -453,7 +546,10 @@ class _PageDots extends ConsumerWidget {
   Widget build(BuildContext context, WidgetRef ref) {
     if (count <= 1) return const SizedBox.shrink();
     final color = Theme.of(context).colorScheme.onSurface;
-    final brightness = MediaQuery.platformBrightnessOf(context);
+    // Mirrors PerLineBackdropBlur — Theme.of follows the
+    // MaterialApp.themeMode override so the page-dot bake stays in
+    // sync with the rest of the app's brightness.
+    final brightness = Theme.of(context).brightness;
     final viewportSize = MediaQuery.sizeOf(context);
     final baked = ref
         .watch(bakedBgProvider(
@@ -466,7 +562,7 @@ class _PageDots extends ConsumerWidget {
         children: List.generate(count, (i) {
           final active = i == index;
           return AnimatedContainer(
-            duration: const Duration(milliseconds: 200),
+            duration: const Duration(milliseconds: 400),
             width: active ? 12 : 8,
             height: 8,
             margin: const EdgeInsets.symmetric(horizontal: 2),
@@ -490,3 +586,5 @@ class _PageDots extends ConsumerWidget {
     );
   }
 }
+
+

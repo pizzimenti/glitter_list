@@ -52,17 +52,50 @@ class BakedBg {
   }
 }
 
-/// Saturation matrix applied to the bg image (`s = 1.3` Rec. 709)
-/// — boosts the "HDR-pop" feel of the bg in sRGB. Public because
-/// the live bg layer in `home_page.dart` and the bake here MUST
-/// apply the identical filter; otherwise per-line frosted strips
-/// composite tonally off vs. the surrounding sharp bg.
-const ColorFilter bgSaturationFilter = ColorFilter.matrix(<double>[
+/// Color filter applied to the bg image. Public because the live bg
+/// layer in `home_page.dart` and the bake here MUST apply the
+/// identical filter; otherwise per-line frosted strips composite
+/// tonally off vs. the surrounding sharp bg.
+///
+/// **Dark mode** keeps the poppy `s=1.3` Rec. 709 saturation boost —
+/// the deep purple `bg_dark.png` reads richer with the high-end
+/// amplification, and the limited dynamic range of dark pinks rarely
+/// pushes any channel near 255. Pure-channel theoretical inputs (eg.
+/// `R=255,G=B=0`) would clip to white, but that combination doesn't
+/// occur in `bg_dark.png`.
+///
+/// **Light mode** uses a modest `s=1.1` saturation boost composed
+/// with a 0.72 scale + 68 lift. The off-diagonals preserve the
+/// channel-vs-channel contrast that the per-line frosted strips read
+/// as "diffusion" — a flat brightness-only matrix flattened the bg
+/// enough that the blurred strip became visually identical to the
+/// surrounding sharp bg, killing the frosted-glass effect. The
+/// scale/lift combo keeps every realistic bg pixel under 255 (white
+/// `0.72·255 + 68 ≈ 252`; brightest pinkish glitter ≈ 255) while
+/// lifting mid-tones to ~160 (vs ~150 original) and shadows from
+/// ~72 → ~104 — a noticeable brightening across the histogram.
+/// Pure red (R=255, G=B=0) theoretically clips at ~262 but the
+/// pink bg asset doesn't contain that combination.
+const ColorFilter _bgSaturationDark = ColorFilter.matrix(<double>[
   1.23622, -0.21456, -0.02166, 0, 0,
   -0.06378, 1.08544, -0.02166, 0, 0,
   -0.06378, -0.21456, 1.27834, 0, 0,
   0, 0, 0, 1, 0,
 ]);
+
+// s=1.1 saturation matrix scaled by 0.72, with +68 lift. Composing
+// these linearly (each coefficient = scale × s_coef) keeps it a
+// single matrix-pass — the bake and live bg layer apply identical
+// math.
+const ColorFilter _bgSaturationLight = ColorFilter.matrix(<double>[
+  0.77666, -0.05148, -0.00518, 0, 68,
+  -0.01531, 0.74051, -0.00518, 0, 68,
+  -0.01531, -0.05148, 0.78680, 0, 68,
+  0, 0, 0, 1, 0,
+]);
+
+ColorFilter bgSaturationFilterFor(Brightness b) =>
+    b == Brightness.dark ? _bgSaturationDark : _bgSaturationLight;
 
 /// Effective Gaussian blur sigma the strips render with, in *logical*
 /// screen pixels. Same value the prior `BackdropFilter` chain used.
@@ -78,14 +111,18 @@ const double _effectiveBlurSigma = 8;
 const Size bgParallaxScale = Size(1.48, 1.39);
 
 /// Reduce the bake's pixel resolution to keep `ui.Image` memory in
-/// check. The content is heavily blurred; bilinear upscale during
-/// `drawImageRect` is visually indistinguishable from a full-res bake.
-const double _bakePixelRatio = 0.5;
+/// check AND shorten the first-bake window the user waits through at
+/// app startup. The content is heavily blurred; bilinear upscale
+/// during `drawImageRect` is visually indistinguishable from a full-
+/// res bake. Bake sigma scales with this ratio (`_effectiveBlurSigma
+/// * _bakePixelRatio`) so the blur in screen space stays the same.
+const double _bakePixelRatio = 0.35;
 
 Future<BakedBg> _bake({
   required AssetBundle bundle,
   required String assetPath,
   required Size viewportSize,
+  required Brightness brightness,
 }) async {
   final scaledLogicalSize = Size(
     viewportSize.width * bgParallaxScale.width,
@@ -148,7 +185,7 @@ Future<BakedBg> _bake({
     );
     canvas.saveLayer(
       dstRect,
-      Paint()..colorFilter = bgSaturationFilter,
+      Paint()..colorFilter = bgSaturationFilterFor(brightness),
     );
     canvas.drawImageRect(source, srcRect, dstRect, Paint());
     canvas.restore();
@@ -229,6 +266,7 @@ final bakedBgProvider =
     bundle: rootBundle,
     assetPath: _assetFor(key.brightness),
     viewportSize: key.size,
+    brightness: key.brightness,
   );
   return baked;
 });
@@ -330,7 +368,7 @@ class _BgParallaxHostState extends ConsumerState<BgParallaxHost> {
           next.currentListIndex < next.lists.length) {
         _controller.animateToPage(
           next.currentListIndex,
-          duration: const Duration(milliseconds: 250),
+          duration: const Duration(milliseconds: 500),
           curve: Curves.easeOut,
         );
       }

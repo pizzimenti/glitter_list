@@ -1,3 +1,4 @@
+import 'package:flutter/material.dart';
 import 'package:hive_ce_flutter/hive_ce_flutter.dart';
 
 import '../models/todo_list.dart';
@@ -6,6 +7,7 @@ class HiveRepository {
   static const _boxName = 'glitter_list';
   static const _listsKey = 'lists';
   static const _seededKey = 'seeded';
+  static const _themeModeKey = 'themeMode';
 
   Box? _box;
 
@@ -50,5 +52,29 @@ class HiveRepository {
     final box = _box;
     if (box == null) return;
     await box.put(_seededKey, true);
+  }
+
+  /// Persisted user override for [ThemeMode]. `system` (default) means
+  /// follow the OS; `light` / `dark` pin the app regardless of the OS
+  /// setting. The hamburger menu cycles this through all three.
+  ThemeMode loadThemeMode() {
+    final box = _box;
+    if (box == null) return ThemeMode.system;
+    final raw = box.get(_themeModeKey);
+    return switch (raw) {
+      'light' => ThemeMode.light,
+      'dark' => ThemeMode.dark,
+      _ => ThemeMode.system,
+    };
+  }
+
+  Future<void> saveThemeMode(ThemeMode mode) async {
+    final box = _box;
+    if (box == null) return;
+    await box.put(_themeModeKey, switch (mode) {
+      ThemeMode.light => 'light',
+      ThemeMode.dark => 'dark',
+      ThemeMode.system => 'system',
+    });
   }
 }
