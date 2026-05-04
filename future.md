@@ -17,17 +17,6 @@ Extra fields (e.g. permissions, accessibility, platform notes) are fine to add p
 
 ---
 
-# Bake off the main thread on first frame
-
-- **Status:** Next-up
-- **Priority:** Medium
-- **Why:** On cold launch the bg PNG decode + saturation/blur pass + `picture.toImage()` readback in `_bake` (lib/ui/baked_bg.dart) all run on the main UI isolate. Real-device logs show `Skipped 42 frames! The application may be doing too much work on its main thread.` during this window, and the per-line frosted "diffusion" strips visibly pop in late after first paint. Same window fires again on theme flip / rotation / size change — anything that invalidates `BakedBgKey`. Faster bakes also mean we don't need a splash gate to mask it (the v0.6.2 cleanup deleted that machinery).
-- **Scope:** Two angles, can land separately or together. (1) **Asset shrink** — `assets/images/bg_light.png` and `bg_dark.png` are 941×1672 PNGs at ~2.7 MB each. PNG decode time scales with pixel count + entropy. Resizing the source down to ~600×1100 (or ~400×800 since the bake heavily blurs anyway) cuts decode time roughly in half without visible quality loss. Lossless WebP would also shave bytes. (2) **Move the bake to a background isolate** — `compute()` or a dedicated `Isolate.spawn` call so the decode + filter + `toImage` pipeline doesn't block UI raster. Tricky bit: `ui.Image` isn't Send-safe across isolates in older Flutter versions, but a `Uint8List` of bytes is — bake to bytes in the isolate, decode the bytes back into a `ui.Image` on the main isolate at the end. Worth measuring whether the cross-isolate handoff cost beats the on-main savings.
-- **Risk / cost:** Asset shrink is ~30 minutes (resize PNGs, eyeball quality, commit). Isolate-bake is half a day to a day depending on what `picture.toImage` does in 3.41.x. Likely a clear UX win on cold-launch perceived performance.
-- **Depends on:** Nothing.
-
----
-
 # Data persistence / Export / backup mechanism
 
 - **Status:** Next-up
