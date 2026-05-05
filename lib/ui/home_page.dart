@@ -1,5 +1,6 @@
 import 'dart:math' as math;
 
+import 'package:flutter/gestures.dart';
 import 'package:flutter/material.dart';
 import 'package:flutter_riverpod/flutter_riverpod.dart';
 
@@ -246,25 +247,29 @@ class _HomePageState extends ConsumerState<HomePage> {
                   }
                   return false;
                 },
-                child: PageView.builder(
+                child: _DominantHorizontalPageDrag(
                   controller: controls.controller,
-                  itemCount: state.lists.length,
-                  onPageChanged: (i) {
-                    // New list comes in at scroll offset 0 → bg back to top.
-                    controls.verticalT.value = -1;
-                    notifier.switchList(i);
-                  },
-                  itemBuilder: (_, i) {
-                    final list = state.lists[i];
-                    // Key by the list's stable id so PageView preserves
-                    // the right ListPage state across mutations. Without
-                    // this, deleting/reordering lists can cause a new
-                    // page to inherit the previous occupant's
-                    // ScrollController / scroll-indicator state because
-                    // PageView.builder reuses State by index, not
-                    // identity.
-                    return ListPage(key: ValueKey(list.id), list: list);
-                  },
+                  child: PageView.builder(
+                    controller: controls.controller,
+                    physics: const NeverScrollableScrollPhysics(),
+                    itemCount: state.lists.length,
+                    onPageChanged: (i) {
+                      // New list comes in at scroll offset 0 → bg back to top.
+                      controls.verticalT.value = -1;
+                      notifier.switchList(i);
+                    },
+                    itemBuilder: (_, i) {
+                      final list = state.lists[i];
+                      // Key by the list's stable id so PageView preserves
+                      // the right ListPage state across mutations. Without
+                      // this, deleting/reordering lists can cause a new
+                      // page to inherit the previous occupant's
+                      // ScrollController / scroll-indicator state because
+                      // PageView.builder reuses State by index, not
+                      // identity.
+                      return ListPage(key: ValueKey(list.id), list: list);
+                    },
+                  ),
                 ),
               ),
         floatingActionButton: currentList == null
@@ -358,6 +363,175 @@ class _HomePageState extends ConsumerState<HomePage> {
       await ref.read(appStateProvider.notifier).addItem(listId, trimmed);
     }
   }
+}
+
+
+
+class _DominantHorizontalPageDrag extends StatefulWidget {
+  const _DominantHorizontalPageDrag({
+    required this.controller,
+    required this.child,
+  });
+
+  final PageController controller;
+  final Widget child;
+
+  @override
+  State<_DominantHorizontalPageDrag> createState() =>
+      _DominantHorizontalPageDragState();
+}
+
+class _DominantHorizontalPageDragState
+    extends State<_DominantHorizontalPageDrag> {
+  Drag? _drag;
+  ScrollHoldController? _hold;
+
+  ScrollPosition? get _position =>
+      widget.controller.hasClients ? widget.controller.position : null;
+
+  @override
+  void dispose() {
+    _hold?.cancel();
+    _drag?.cancel();
+    super.dispose();
+  }
+
+  @override
+  Widget build(BuildContext context) {
+    final configuration = ScrollConfiguration.of(context);
+    return RawGestureDetector(
+      behavior: HitTestBehavior.opaque,
+      gestures: <Type, GestureRecognizerFactory>{
+        _DominantHorizontalDragGestureRecognizer:
+            GestureRecognizerFactoryWithHandlers<
+              _DominantHorizontalDragGestureRecognizer
+            >(
+              () => _DominantHorizontalDragGestureRecognizer(
+                supportedDevices: configuration.dragDevices,
+              ),
+              (_DominantHorizontalDragGestureRecognizer instance) {
+                instance
+                  ..onDown = _handleDragDown
+                  ..onStart = _handleDragStart
+                  ..onUpdate = _handleDragUpdate
+                  ..onEnd = _handleDragEnd
+                  ..onCancel = _handleDragCancel
+                  ..velocityTrackerBuilder = configuration
+                      .velocityTrackerBuilder(context)
+                  ..dragStartBehavior = DragStartBehavior.start
+                  ..onlyAcceptDragOnThreshold = true
+                  ..multitouchDragStrategy = configuration
+                      .getMultitouchDragStrategy(context)
+                  ..gestureSettings = MediaQuery.maybeGestureSettingsOf(context)
+                  ..supportedDevices = configuration.dragDevices;
+              },
+            ),
+      },
+      child: widget.child,
+    );
+  }
+
+  void _handleDragDown(DragDownDetails details) {
+    final position = _position;
+    if (position == null) return;
+    _hold = position.hold(_disposeHold);
+  }
+
+  void _handleDragStart(DragStartDetails details) {
+    final position = _position;
+    if (position == null) {
+      _hold?.cancel();
+      return;
+    }
+    _drag = position.drag(details, _disposeDrag);
+    _disposeHold();
+  }
+
+  void _handleDragUpdate(DragUpdateDetails details) {
+    _drag?.update(details);
+  }
+
+  void _handleDragEnd(DragEndDetails details) {
+    _drag?.end(details);
+  }
+
+  void _handleDragCancel() {
+    _hold?.cancel();
+    _drag?.cancel();
+  }
+
+  void _disposeHold() {
+    _hold = null;
+  }
+
+  void _disposeDrag() {
+    _drag = null;
+  }
+}
+
+class _DominantHorizontalDragGestureRecognizer
+    extends HorizontalDragGestureRecognizer {
+  _DominantHorizontalDragGestureRecognizer({super.supportedDevices});
+
+  Offset _globalDelta = Offset.zero;
+  bool _rejectedForVerticalDrag = false;
+
+  @override
+  void addAllowedPointer(PointerDownEvent event) {
+    _globalDelta = Offset.zero;
+    _rejectedForVerticalDrag = false;
+    super.addAllowedPointer(event);
+  }
+
+  @override
+  void addAllowedPointerPanZoom(PointerPanZoomStartEvent event) {
+    _globalDelta = Offset.zero;
+    _rejectedForVerticalDrag = false;
+    super.addAllowedPointerPanZoom(event);
+  }
+
+  @override
+  void handleEvent(PointerEvent event) {
+    if (event is PointerMoveEvent) {
+      _globalDelta += event.delta;
+    } else if (event is PointerPanZoomUpdateEvent) {
+      _globalDelta += event.panDelta;
+    }
+    if (_isVerticalDrag(event)) {
+      _rejectedForVerticalDrag = true;
+      resolve(GestureDisposition.rejected);
+      return;
+    }
+    super.handleEvent(event);
+  }
+
+  bool _isVerticalDrag(PointerEvent event) {
+    if (event is! PointerMoveEvent && event is! PointerPanZoomUpdateEvent) {
+      return false;
+    }
+    final dx = _globalDelta.dx.abs();
+    final dy = _globalDelta.dy.abs();
+    final slop = computeHitSlop(event.kind, gestureSettings);
+    return dy > dx && dy > slop;
+  }
+
+  @override
+  bool hasSufficientGlobalDistanceToAccept(
+    PointerDeviceKind pointerDeviceKind,
+    double? deviceTouchSlop,
+  ) {
+    if (_rejectedForVerticalDrag) return false;
+    final dx = _globalDelta.dx.abs();
+    final dy = _globalDelta.dy.abs();
+    return dx > dy &&
+        super.hasSufficientGlobalDistanceToAccept(
+          pointerDeviceKind,
+          deviceTouchSlop,
+        );
+  }
+
+  @override
+  String get debugDescription => 'dominant horizontal drag';
 }
 
 /// Three-segment theme picker (sun / auto / moon) embedded in the
@@ -589,5 +763,3 @@ class _PageDots extends ConsumerWidget {
     );
   }
 }
-
-

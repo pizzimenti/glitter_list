@@ -4,6 +4,12 @@ All notable changes to **Glitter List** are documented here. The format follows 
 
 ## [Unreleased]
 
+## [0.6.4] - 2026-05-05
+
+### Fixed
+
+- **Touch axis filtering for list swipes.** The multi-list `PageView` is now driven by a custom horizontal drag recognizer that only wins after cumulative horizontal movement exceeds vertical movement. Mostly vertical drags no longer slide to another list, including short-list drags where the inner list cannot scroll, while intentional horizontal swipes at angles under the 45-degree split still advance pages.
+
 ## [0.6.3] - 2026-05-04
 
 ### Changed
